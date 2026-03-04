@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Client {
+  id         Int             @id @default(autoincrement())
+  reference  String          @unique
+  accessCode String          
+  name       String?
+  imports    ImportTracking[]
+}
+
+model ImportTracking {
+  id             Int           @id @default(autoincrement())
+  reference      String
+  clientId       Int
+  client         Client        @relation(fields: [clientId], references: [id])
+  
+  // Core Info
+  matricule      String?
+  dateEmbarque   String?
+  exportador     String?
+  destinateur    String?
+  location       String?
+  date           String?
+  sortie         String?
+  tracteurImport String?
+  dateLivraison  String?
+
+  // Financials
+  prixAchat      String?
+  prixVente      String?
+  dechargement   String?
+  tmsa           String?
+  parking        String?
+  mafi           String?
+
+  // Additional 
+  pesage         String?
+  visite         String?
+  intervention   String?
+  fraisBad       String?
+  avisArrive     String?
+  montantFacture String?
+
+  // Workflow
+  status         String        @default("Not Started")
+
+  messages       ChatMessage[]
+}
+
+model ChatMessage {
+  id          Int            @id @default(autoincrement())
+  importId    Int
+  importRef   ImportTracking @relation(fields: [importId], references: [id])
+  senderType  String         // 'Worker' or 'Client'
+  text        String
+  type        String         // 'text' or 'file'
+  fileType    String?        // e.g. 'Avis', 'Facture'
+  fileName    String?        // physical filename on disk
+  timestamp   DateTime       @default(now())
+}
