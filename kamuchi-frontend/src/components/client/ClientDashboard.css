@@ -93,3 +93,24 @@
 .client-chat-area {
     min-height: 0;
 }
+
+.spec-item {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+}
+
+.spec-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.spec-val {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--primary-blue);
+}

@@ -8,11 +8,12 @@ datasource db {
 }
 
 model Client {
-  id         Int             @id @default(autoincrement())
-  reference  String          @unique
-  accessCode String          
-  name       String?
-  imports    ImportTracking[]
+  id           Int             @id @default(autoincrement())
+  reference    String          @unique
+  accessCode   String?          
+  name         String?
+  paymentTerms Int             @default(30)
+  imports      ImportTracking[]
 }
 
 model ImportTracking {
@@ -65,3 +66,150 @@ model ChatMessage {
   fileName    String?        // physical filename on disk
   timestamp   DateTime       @default(now())
 }
+
+model LogisticsImport {
+  id                Int      @id @default(autoincrement())
+  reference         String
+  clientReference   String?
+  clientName        String
+  dateEmbarquement  String?
+  matriculeRemorque String?
+  matriculeTracteur String?
+  dateSortiePort    String?
+  dateLivraison     String?
+  trajet            String?
+  portOfEntry       String?   // Motril / Algeciras
+  montant           Float?
+  extras            String?
+  visite            String?
+  redCode           String?
+  redCodePrice      Float?
+  groupId           String?
+  status            String   @default("Not Started")
+  createdAt         DateTime @default(now())
+}
+
+model LogisticsExport {
+  id                Int      @id @default(autoincrement())
+  reference         String
+  clientReference   String?
+  clientName        String
+  dateChargement    String?
+  matriculeRemorque String?
+  chargement        String?
+  dechargement      String?
+  tracteur          String?
+  embarquementAvec  String?
+  portOfEntry       String?   // Motril / Algeciras
+  montant           Float?
+  redCode           String?
+  redCodePrice      Float?
+  roroRopax         String?
+  t6bisDays         String?
+  t6bisPrix         Float?
+  fraisSupp         String?
+  groupId           String?
+  commentaires      String?
+  status            String   @default("Not Started")
+  createdAt         DateTime @default(now())
+}
+
+model LogisticsDocument {
+  id             Int      @id @default(autoincrement())
+  operationType  String   // 'IMPORT' or 'EXPORT'
+  operationId    Int
+  documentType   String   // 'CMR', 'TO', 'BL', 'DECLARATION', 'TRYPTIQUE'
+  fileName       String
+  originalName   String
+  createdAt      DateTime @default(now())
+}
+
+model User {
+  id               Int      @id @default(autoincrement())
+  username         String   @unique
+  password         String
+  role             String   // 'ADMIN' or 'WORKER'
+  recoveryCode     String?  // One-time security code
+  recoveryCodeUsed Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  userId        Int?
+  username      String?
+  action        String   // 'CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE', 'FILE_UPLOAD'
+  entityType    String   // 'IMPORT', 'EXPORT', 'DOCUMENT'
+  entityId      Int
+  details       String   // JSON string of changes
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int?     // null for broadcast
+  role        String?  // 'ADMIN', 'WORKER', 'CLIENT'
+  title       String
+  message     String
+  type        String   // 'INFO', 'WARNING', 'SUCCESS'
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Fournisseur {
+  id            Int      @id @default(autoincrement())
+  name          String   // Name of the supplier
+  nm_facture    String?
+  dateFacture   String?
+  montant       Float?
+  datePaiement  String?
+  status        String   @default("Unpaid")
+  createdAt     DateTime @default(now())
+}
+
+model Supplier {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id             Int      @id @default(autoincrement())
+  invoiceNumber  String   @unique
+  clientName     String
+  reference      String
+  dateFacture    String
+  montant        Float
+  status         String   @default("Unpaid") // Unpaid, Paid
+  operationType  String   // IMPORT or EXPORT
+  operationId    String
+  paymentDetail  String?
+  paymentDate    String?
+  paymentType    String?  // 'Cheque', 'Espece', 'Virement'
+  dueDate        String?  // Calculated due date
+  createdAt      DateTime @default(now())
+}
+
+model Tracteur {
+  id            Int      @id @default(autoincrement())
+  date          String?
+  client        String?
+  matricule     String?
+  facture       String?
+  trajetImport  String?
+  trajetExport  String?
+  autres        Float?
+  autoroute     Float?
+  gasoil        Float?
+  deplacement   Float?
+  salaire       Float?
+  lavage        Float?
+  huil          Float?
+  reparation    Float?
+  traite        Float?
+  amende        Float?
+  customFields  String?
+  prix          Float?
+  createdAt     DateTime @default(now())
+}
+

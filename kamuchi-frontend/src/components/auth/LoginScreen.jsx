@@ -1,28 +1,41 @@
 import React, { useState } from 'react';
 import './LoginScreen.css';
+import { API_BASE_URL } from '../../api';
 
 const LoginScreen = ({ onLogin }) => {
-    const [role, setRole] = useState('worker');
-    const [reference, setReference] = useState('');
-    const [secretCode, setSecretCode] = useState('');
+    const [identifier, setIdentifier] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (role === 'worker') {
-            onLogin('worker');
-        } else if (role === 'guest') {
-            if (!secretCode.trim()) {
-                alert('Please enter a secret code');
-                return;
+        setError('');
+        setLoading(true);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Login failed');
             }
-            // Prefix so App.jsx can distinguish guest from client
-            onLogin(`guest:${secretCode.trim()}`);
-        } else {
-            if (!reference.trim()) {
-                alert('Please enter a Client Reference or Access Code');
-                return;
-            }
-            onLogin(reference.trim());
+
+            // Store token and user info
+            localStorage.setItem('kamuchiToken', data.token);
+            localStorage.setItem('kamuchiUser', JSON.stringify(data.user));
+            localStorage.setItem('kamuchiUserRole', data.user.role.toLowerCase());
+
+            onLogin(data.user);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -30,69 +43,45 @@ const LoginScreen = ({ onLogin }) => {
         <div className="login-container">
             <div className="login-card card">
                 <div className="login-header">
+                    <div className="logo-icon">🏢</div>
                     <h2>Kamuchi Trans</h2>
-                    <p>Login to Dashboard</p>
+                    <p>Enter your credentials to access your dashboard</p>
                 </div>
                 <form onSubmit={handleLogin} className="login-form">
+                    
+                    {error && <div className="error-message" style={{ color: 'var(--status-not-started)', fontSize: '0.85rem', textAlign: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem' }}>{error}</div>}
+
                     <div className="form-group">
-                        <label>Select Role</label>
-                        <div className="role-selector">
-                            <button
-                                type="button"
-                                className={`role-btn ${role === 'worker' ? 'active' : ''}`}
-                                onClick={() => setRole('worker')}
-                            >
-                                Worker
-                            </button>
-                            <button
-                                type="button"
-                                className={`role-btn ${role === 'client' ? 'active' : ''}`}
-                                onClick={() => setRole('client')}
-                            >
-                                Client
-                            </button>
-                            <button
-                                type="button"
-                                className={`role-btn ${role === 'guest' ? 'active' : ''}`}
-                                onClick={() => setRole('guest')}
-                            >
-                                💬 Chat
-                            </button>
-                        </div>
+                        <label>Username or Reference</label>
+                        <input
+                            type="text"
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value)}
+                            placeholder="e.g. Admin or CLI-A001"
+                            required
+                            autoFocus
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label>Password or Access Code</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter your security code"
+                            required
+                        />
                     </div>
 
-                    {role === 'client' && (
-                        <div className="form-group">
-                            <label>Client Reference / Access Code</label>
-                            <input
-                                type="text"
-                                value={reference}
-                                onChange={(e) => setReference(e.target.value)}
-                                placeholder="e.g. CLI-1234"
-                            />
-                        </div>
-                    )}
-
-                    {role === 'guest' && (
-                        <div className="form-group">
-                            <label>🔑 Secret Chat Code</label>
-                            <input
-                                type="text"
-                                value={secretCode}
-                                onChange={(e) => setSecretCode(e.target.value)}
-                                placeholder="Enter the secret code you received"
-                                autoFocus
-                            />
-                            <small style={{ color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
-                                Enter the code shared with you to join the group chat.
-                            </small>
-                        </div>
-                    )}
-
-                    <button type="submit" className="btn-primary login-submit">
-                        {role === 'guest' ? '🚀 Join Chat' : 'Login'}
+                    <button type="submit" className="btn-primary login-submit" disabled={loading} style={{ width: '100%', marginTop: '1rem', height: '48px', fontSize: '1rem' }}>
+                        {loading ? 'Authenticating...' : 'Sign In'}
                     </button>
                 </form>
+                
+                <div className="login-footer">
+                    <p>© 2026 Kamuchi Trans Logistics. All rights reserved.</p>
+                </div>
             </div>
         </div>
     );

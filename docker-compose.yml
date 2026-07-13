@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./kamuchi-backend
+    container_name: kamuchi-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./kamuchi-backend/prisma:/app/prisma
+      - ./kamuchi-backend/uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=kamuchi-super-secret-key-2024
+    restart: unless-stopped
+    command: >
+      sh -c "chmod -R 777 /app/prisma /app/uploads &&
+             npx prisma generate &&
+             npx prisma db push &&
+             node server.js"
+
+  frontend:
+    build:
+      context: ./kamuchi-frontend
+    container_name: kamuchi-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,82 +1,53 @@
 import React, { useState } from 'react';
-import TrackingTable from './TrackingTable';
 import './WorkerDashboard.css';
 import './WorkspaceLayout.css';
-import GroupChatHub from '../chat/GroupChatHub';
 import ClientManager from './ClientManager';
-import EditImportModal from './EditImportModal';
+import LogisticsDashboard from './LogisticsDashboard';
+import InvoiceDashboard from './InvoiceDashboard';
+import PaymentDashboard from './PaymentDashboard';
+import TracteurTable from './TracteurTable';
+import NotificationCenter from '../common/NotificationCenter';
 
-const WorkerDashboard = ({ onLogout }) => {
-    const [selectedImport, setSelectedImport] = useState(null);
-    const [activeView, setActiveView] = useState('tracking'); // 'tracking' or 'clients'
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [editingImport, setEditingImport] = useState(null);
-
-    // Helper function to update the table data based on chat detection
-    const handleAssignExtractedData = async (dataToAssign) => {
-        if (!selectedImport) return;
-
-        try {
-            const res = await fetch(`http://localhost:5000/api/imports/${selectedImport.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    matricule: dataToAssign.matricule,
-                    sortie: dataToAssign.port,
-                    location: dataToAssign.location
-                })
-            });
-
-            if (res.ok) {
-                // Refresh table and selected row if necessary
-                setRefreshTrigger(prev => prev + 1);
-                const updatedImport = await res.json();
-                setSelectedImport(updatedImport);
-                alert('Data successfully assigned to Tracking Grid!');
-            }
-        } catch (err) {
-            console.error("Failed to assign data:", err);
-            alert('Failed to assign data.');
-        }
+const WorkerDashboard = ({ user, onLogout }) => {
+    const role = user?.role || 'WORKER';
+    
+    const getInitialView = () => {
+        if (role === 'IMPORT_WORKER' || role === 'EXPORT_WORKER') return 'logistics';
+        if (role === 'OPS_MANAGER') return 'confirmed';
+        return 'logistics';
     };
 
-    const handleTableAction = async (actionType, rowData) => {
-        if (actionType === 'chat') {
-            setSelectedImport(rowData);
-        } else if (actionType === 'edit') {
-            setEditingImport(rowData);
-        } else if (actionType === 'delete') {
-            const confirmed = window.confirm(`Are you sure you want to delete import ${rowData.reference}?`);
-            if (confirmed) {
-                try {
-                    const res = await fetch(`http://localhost:5000/api/imports/${rowData.id}`, {
-                        method: 'DELETE'
-                    });
-                    if (res.ok) {
-                        setRefreshTrigger(prev => prev + 1);
-                        if (selectedImport && selectedImport.id === rowData.id) {
-                            setSelectedImport(null);
-                        }
-                    } else {
-                        alert("Failed to delete the import.");
-                    }
-                } catch (err) {
-                    console.error("Delete failed", err);
-                }
-            }
-        }
-    };
+    const [activeView, setActiveView] = useState(getInitialView());
+
+    const navItems = [
+        { id: 'logistics', label: 'Logistics', roles: ['IMPORT_WORKER', 'EXPORT_WORKER', 'ADMIN', 'WORKER'] },
+        { id: 'confirmed', label: 'Confirmed Operations', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'payments', label: 'Paiements', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'invoices', label: 'Factures', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'clients', label: 'Clients & Groups', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'tracteur', label: 'Tracteur', roles: ['OPS_MANAGER', 'ADMIN'] },
+    ];
+    
+    const visibleNavItems = navItems.filter(item => item.roles.includes(role));
 
     return (
         <div className="dashboard-layout">
             <aside className="sidebar">
                 <div className="sidebar-header">
                     <h2>Kamuchi</h2>
-                    <span className="badge">Worker</span>
+                    <span className="badge">{role.replace('_', ' ')}</span>
                 </div>
                 <nav className="sidebar-nav">
-                    <a href="#" className={`nav-item ${activeView === 'tracking' ? 'active' : ''}`} onClick={() => setActiveView('tracking')}>Import Tracking</a>
-                    <a href="#" className={`nav-item ${activeView === 'clients' ? 'active' : ''}`} onClick={() => setActiveView('clients')}>Clients & Groups</a>
+                    {visibleNavItems.map(item => (
+                        <a 
+                            key={item.id}
+                            href="#" 
+                            className={`nav-item ${activeView === item.id ? 'active' : ''}`} 
+                            onClick={() => setActiveView(item.id)}
+                        >
+                            {item.label}
+                        </a>
+                    ))}
                 </nav>
                 <div className="sidebar-footer">
                     <button onClick={onLogout} className="btn-secondary logout-btn">Logout</button>
@@ -85,52 +56,29 @@ const WorkerDashboard = ({ onLogout }) => {
 
             <main className="main-content">
                 <header className="topbar">
-                    <h1>Import Dashboard</h1>
-                    <div className="user-info">
-                        <span>Worker Node</span>
+                    <h1>
+                        {navItems.find(i => i.id === activeView)?.label || 'Dashboard'}
+                    </h1>
+                    <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <NotificationCenter role={role} />
+                        <span>{user?.username || 'Worker Node'}</span>
                     </div>
                 </header>
 
                 <div className="content-area">
-                    {activeView === 'tracking' ? (
-                        <>
-                            {editingImport && (
-                                <EditImportModal
-                                    importData={editingImport}
-                                    onClose={() => setEditingImport(null)}
-                                    onImportUpdated={(updatedImport) => {
-                                        setRefreshTrigger(prev => prev + 1);
-                                        if (selectedImport && selectedImport.id === updatedImport.id) {
-                                            setSelectedImport(updatedImport);
-                                        }
-                                    }}
-                                />
-                            )}
-                            <div className="workspace-table">
-                                <TrackingTable
-                                    selectedRowId={selectedImport?.id}
-                                    onActionClick={handleTableAction}
-                                    refreshTrigger={refreshTrigger}
-                                />
-                            </div>
-                            <div className="workspace-chat">
-                                {selectedImport ? (
-                                    <GroupChatHub
-                                        reference={selectedImport.reference}
-                                        importId={selectedImport.id}
-                                        accessCode={selectedImport.client?.accessCode}
-                                        onAssignData={handleAssignExtractedData}
-                                    />
-                                ) : (
-                                    <div className="chat-placeholder card empty">
-                                        <p>Select an import to view group chat</p>
-                                    </div>
-                                )}
-                            </div>
-                        </>
+                    {activeView === 'logistics' || activeView === 'confirmed' ? (
+                        <LogisticsDashboard isConfirmedView={activeView === 'confirmed'} user={user} />
+                    ) : activeView === 'invoices' ? (
+                        <InvoiceDashboard />
+                    ) : activeView === 'payments' ? (
+                        <PaymentDashboard />
+                    ) : activeView === 'tracteur' ? (
+                        <div className="workspace-full">
+                            <TracteurTable user={user} />
+                        </div>
                     ) : (
                         <div className="workspace-full">
-                            <ClientManager />
+                            <ClientManager user={user} />
                         </div>
                     )}
                 </div>

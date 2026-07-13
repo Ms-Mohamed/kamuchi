@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import './ClientManager.css';
+import { useModal } from '../common/ModalContext';
+import { API_BASE_URL } from '../../api';
 
-const ClientManager = () => {
+const ClientManager = ({ user }) => {
+    const isOpsManager = user?.role === 'OPS_MANAGER' || user?.role === 'ADMIN';
     const [clients, setClients] = useState([]);
+    const { showAlert } = useModal();
 
     // Helper function to generate a random client reference
     const generateClientRef = () => {
         return 'CLI-' + Math.floor(1000 + Math.random() * 9000);
     };
 
-    const [formData, setFormData] = useState({ reference: generateClientRef(), name: '', accessCode: '' });
+    const [formData, setFormData] = useState({ reference: generateClientRef(), name: '' });
 
     useEffect(() => {
         fetchClients();
@@ -17,7 +21,7 @@ const ClientManager = () => {
 
     const fetchClients = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/clients');
+            const res = await fetch(`${API_BASE_URL}/clients`);
             const data = await res.json();
             setClients(data);
         } catch (err) {
@@ -28,7 +32,7 @@ const ClientManager = () => {
     const handleCreateClient = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/clients', {
+            const res = await fetch(`${API_BASE_URL}/clients`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -36,10 +40,10 @@ const ClientManager = () => {
             if (res.ok) {
                 const newClient = await res.json();
                 setClients([...clients, newClient]);
-                setFormData({ reference: generateClientRef(), name: '', accessCode: '' });
-                alert('Client created successfully!');
+                setFormData({ reference: generateClientRef(), name: '' });
+                showAlert('Success', 'Client created successfully!', 'success');
             } else {
-                alert('Error creating client. Make sure the reference is unique.');
+                showAlert('Error', 'Error creating client. Make sure the reference is unique.', 'warning');
             }
         } catch (err) {
             console.error('Failed to create client', err);
@@ -51,17 +55,7 @@ const ClientManager = () => {
             <div className="card client-form-card">
                 <h2>Add New Client</h2>
                 <form onSubmit={handleCreateClient} className="client-form">
-                    <div className="form-group">
-                        <label>Client Reference (Auto-generated):</label>
-                        <input
-                            type="text"
-                            required
-                            readOnly
-                            style={{ backgroundColor: 'var(--bg-lighter)', color: 'var(--text-muted)' }}
-                            value={formData.reference}
-                            onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                        />
-                    </div>
+
                     <div className="form-group">
                         <label>Client Name:</label>
                         <input
@@ -72,16 +66,20 @@ const ClientManager = () => {
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         />
                     </div>
-                    <div className="form-group">
-                        <label>Access Code (For Group Chat):</label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="e.g. secret123"
-                            value={formData.accessCode}
-                            onChange={(e) => setFormData({ ...formData, accessCode: e.target.value })}
-                        />
-                    </div>
+
+                    {isOpsManager && (
+                        <div className="form-group">
+                            <label>Payment Terms (Days):</label>
+                            <input
+                                type="number"
+                                required
+                                placeholder="e.g. 45"
+                                value={formData.paymentTerms || 30}
+                                onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                            />
+                        </div>
+                    )}
+
                     <button type="submit" className="btn-primary">Create Client</button>
                 </form>
             </div>
@@ -91,20 +89,20 @@ const ClientManager = () => {
                 <table className="tracking-table">
                     <thead>
                         <tr>
-                            <th>Reference</th>
                             <th>Name</th>
-                            <th>Access Code</th>
+                            <th>Reference</th>
+                            <th>Payment Terms</th>
                         </tr>
                     </thead>
                     <tbody>
                         {clients.length > 0 ? clients.map(client => (
                             <tr key={client.id}>
-                                <td><strong>{client.reference}</strong></td>
                                 <td>{client.name}</td>
-                                <td>{client.accessCode}</td>
+                                <td><code>{client.reference}</code></td>
+                                <td>{client.paymentTerms} Days</td>
                             </tr>
                         )) : (
-                            <tr><td colSpan="3">No clients found.</td></tr>
+                            <tr><td colSpan="1">No clients found.</td></tr>
                         )}
                     </tbody>
                 </table>

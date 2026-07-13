@@ -1,0 +1,287 @@
+.logistics-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 77, 140, 0.4); /* primary blue with opacity */
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.logistics-modal-content {
+    background: var(--surface-white);
+    padding: 2.5rem;
+    border-radius: 16px;
+    width: 95%;
+    max-width: 1000px;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-light);
+}
+
+/* Scrollbar styling for modal */
+.logistics-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+.logistics-modal-content::-webkit-scrollbar-track {
+    background: var(--body-bg);
+    border-radius: 8px;
+}
+.logistics-modal-content::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 8px;
+}
+.logistics-modal-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.logistics-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--light-blue);
+}
+
+.logistics-modal-header h2 {
+    margin: 0;
+    color: var(--primary-blue);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.logistics-btn-close {
+    background: var(--body-bg);
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-secondary);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.logistics-btn-close:hover {
+    background: #FEE2E2;
+    color: #DC2626;
+    transform: rotate(90deg);
+}
+
+.logistics-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem 1.5rem;
+}
+
+.logistics-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Full width fields (e.g. Commentaires, Extras) */
+.logistics-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.logistics-form-group label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.logistics-form-group input,
+.logistics-form-group select,
+.logistics-form-group textarea {
+    padding: 0.75rem 1rem;
+    background: #FAFAFA;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.logistics-form-group input:focus,
+.logistics-form-group select:focus,
+.logistics-form-group textarea:focus {
+    border-color: var(--primary-blue);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--light-blue);
+    background: var(--surface-white);
+}
+
+.logistics-form-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.extras-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.extra-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.btn-add-extra {
+    background: #f1f5f9;
+    color: var(--primary-blue);
+    border: 1px solid #e2e8f0;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-add-extra:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.btn-remove-extra {
+    background: #fee2e2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-remove-extra:hover {
+    background: #fecaca;
+}
+
+.logistics-form-actions button {
+    min-width: 120px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+}
+
+/* Custom Searchable Select */
+.custom-searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 200px;
+    background: white;
+    border: 1px solid var(--primary-blue);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 100;
+    overflow-y: auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.search-result-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.9rem;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--light-blue);
+    color: var(--primary-blue);
+}
+
+.search-result-item.selected {
+    background: var(--primary-blue);
+    color: white;
+}
+
+/* Currency Converter UI */
+.currency-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.currency-input-wrapper input {
+    width: 100%;
+    padding-right: 70px !important; /* Make room for buttons */
+}
+
+.currency-actions {
+    position: absolute;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.currency-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.currency-btn:hover {
+    background: white;
+    border-color: var(--primary-blue);
+    transform: translateY(-1px) scale(1.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.currency-btn.active {
+    background: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
+    box-shadow: 0 4px 6px -1px rgba(10, 77, 140, 0.3);
+}
+
+.currency-btn:active {
+    transform: translateY(0) scale(0.95);
+}
+

@@ -1,40 +1,67 @@
 import { useState, useEffect } from 'react'
 import LoginScreen from './components/auth/LoginScreen'
 import WorkerDashboard from './components/worker/WorkerDashboard'
+import AdminDashboard from './components/admin/AdminDashboard'
 import ClientDashboard from './components/client/ClientDashboard'
-import GuestChatView from './components/chat/GuestChatView'
 import './index.css'
 
+import { ModalProvider } from './components/common/ModalContext'
+import { API_BASE_URL } from './api'
+
 function App() {
-  const [userRole, setUserRole] = useState(() => {
-    return localStorage.getItem('kamuchiUserRole') || null;
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('kamuchiUser');
+    return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  useEffect(() => {
-    if (userRole) {
-      localStorage.setItem('kamuchiUserRole', userRole);
-    } else {
-      localStorage.removeItem('kamuchiUserRole');
-    }
-  }, [userRole]);
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
 
-  const isGuest = userRole && userRole.startsWith('guest:');
+  const handleLogout = () => {
+    localStorage.removeItem('kamuchiToken');
+    localStorage.removeItem('kamuchiUser');
+    localStorage.removeItem('kamuchiUserRole');
+    setUser(null);
+  };
+
+  // Verify token on load if it exists
+  useEffect(() => {
+    const token = localStorage.getItem('kamuchiToken');
+    if (token && !user) {
+      // Attempt to fetch current user data if we have a token but no user object
+      fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Session expired');
+      })
+      .then(userData => {
+        setUser(userData);
+      })
+      .catch(() => {
+        handleLogout();
+      });
+    }
+  }, []);
+
+  const role = user?.role?.toUpperCase() || '';
 
   return (
-    <div className="app-container">
-      {!userRole ? (
-        <LoginScreen onLogin={setUserRole} />
-      ) : userRole === 'worker' ? (
-        <WorkerDashboard onLogout={() => setUserRole(null)} />
-      ) : isGuest ? (
-        <GuestChatView
-          secretCode={userRole.replace('guest:', '')}
-          onLogout={() => setUserRole(null)}
-        />
-      ) : (
-        <ClientDashboard userRole={userRole} onLogout={() => setUserRole(null)} />
-      )}
-    </div>
+    <ModalProvider>
+      <div className="app-container">
+        {!user ? (
+          <LoginScreen onLogin={handleLogin} />
+        ) : role === 'ADMIN' ? (
+          <AdminDashboard onLogout={handleLogout} />
+        ) : (role.includes('WORKER') || role.includes('OPS') || role.includes('MANAGER')) ? (
+          <WorkerDashboard user={user} onLogout={handleLogout} />
+        ) : (
+          <ClientDashboard userRole={user.reference || user.username} onLogout={handleLogout} />
+        )}
+      </div>
+    </ModalProvider>
   )
 }
 

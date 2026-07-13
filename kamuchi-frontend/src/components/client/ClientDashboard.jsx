@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import GroupChatHub from '../chat/GroupChatHub';
+import ClientShipmentMap from './ClientShipmentMap';
+import ClientDocumentPortal from './ClientDocumentPortal';
+import NotificationCenter from '../common/NotificationCenter';
 import '../worker/WorkerDashboard.css';
 import './ClientDashboard.css';
+import { API_BASE_URL } from '../../api';
 
 const STATUS_CLASS = {
     'Not Started': 'status-not-started',
@@ -16,15 +19,43 @@ const ClientDashboard = ({ userRole, onLogout }) => {
     useEffect(() => {
         const fetchMyImport = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/imports');
-                const allImports = await res.json();
+                // Fetch from multiple sources to ensure we catch the correct operation
+                const [legacyRes, importsRes, exportsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/imports`),
+                    fetch(`${API_BASE_URL}/logistics-imports`),
+                    fetch(`${API_BASE_URL}/logistics-exports`)
+                ]);
 
-                // Match by client's reference or accessCode against the userRole entered at login
-                const matched = allImports.find(imp =>
+                const legacyData = await legacyRes.json();
+                const importsData = await importsRes.json();
+                const exportsData = await exportsRes.json();
+
+                // 1. Try to match in modern imports
+                const matchedImport = importsData.find(imp => imp.reference === userRole);
+                if (matchedImport) {
+                    setImportData({ ...matchedImport, opType: 'IMPORT' });
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Try to match in modern exports
+                const matchedExport = exportsData.find(exp => exp.reference === userRole);
+                if (matchedExport) {
+                    setImportData({ ...matchedExport, opType: 'EXPORT' });
+                    setLoading(false);
+                    return;
+                }
+
+                // 3. Fallback to legacy tracking
+                const matchedLegacy = legacyData.find(imp =>
                     imp.client?.reference === userRole ||
                     imp.client?.accessCode === userRole
                 );
-                setImportData(matched || null);
+                if (matchedLegacy) {
+                    setImportData({ ...matchedLegacy, opType: 'IMPORT' });
+                } else {
+                    setImportData(null);
+                }
             } catch (err) {
                 console.error('Failed to fetch imports:', err);
             } finally {
@@ -52,8 +83,11 @@ const ClientDashboard = ({ userRole, onLogout }) => {
             <main className="main-content">
                 <header className="topbar">
                     <h1>Client Portal</h1>
-                    <div className="user-info">
-                        <span>Access Code: <strong>{userRole}</strong></span>
+                    <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <NotificationCenter role="CLIENT" />
+                        <div className="user-info">
+                            <span>Access Code: <strong>{userRole}</strong></span>
+                        </div>
                     </div>
                 </header>
 
@@ -84,22 +118,11 @@ const ClientDashboard = ({ userRole, onLogout }) => {
                                             <span className="detail-label">Location</span>
                                             <span className="detail-value">{importData.location || '—'}</span>
                                         </div>
-                                        <div className="detail-row">
-                                            <span className="detail-label">Exportador</span>
-                                            <span className="detail-value">{importData.exportador || '—'}</span>
-                                        </div>
-                                        <div className="detail-row">
-                                            <span className="detail-label">Date d'embarque</span>
-                                            <span className="detail-value">{importData.dateEmbarque || '—'}</span>
-                                        </div>
-                                        <div className="detail-row">
-                                            <span className="detail-label">Date Livraison</span>
-                                            <span className="detail-value">{importData.dateLivraison || '—'}</span>
-                                        </div>
-                                        <div className="detail-row">
-                                            <span className="detail-label">Port de Sortie</span>
-                                            <span className="detail-value">{importData.sortie || '—'}</span>
-                                        </div>
+                                    </div>
+
+                                    {/* Integrated Map */}
+                                    <div style={{ marginTop: '1.5rem' }}>
+                                        <ClientShipmentMap shipment={importData} />
                                     </div>
                                 </div>
                             ) : (
@@ -110,18 +133,43 @@ const ClientDashboard = ({ userRole, onLogout }) => {
                             )}
                         </div>
 
-                        {/* --- Right Panel: Chat --- */}
+                        {/* --- Right Panel: Documents & Specs --- */}
                         <div className="client-chat-area">
                             {importData ? (
-                                <GroupChatHub
-                                    reference={importData.reference}
-                                    importId={importData.id}
-                                    currentUserType="Client"
-                                    onAssignData={() => { }} // Clients don't assign data
-                                />
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%'}}>
+                                    <ClientDocumentPortal 
+                                        operationId={importData.id} 
+                                        operationType={importData.opType} 
+                                        reference={importData.reference} 
+                                    />
+                                    
+                                    <div className="card" style={{padding: '1.5rem'}}>
+                                        <h3 style={{fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                            🛡️ Operational Specs
+                                        </h3>
+                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                                            <div className="spec-item">
+                                                <p className="spec-label">Truck Matrix</p>
+                                                <p className="spec-val">{importData.matriculeRemorque || importData.matricule || 'Pending'}</p>
+                                            </div>
+                                            <div className="spec-item">
+                                                <p className="spec-label">Tractor Unit</p>
+                                                <p className="spec-val">{importData.matriculeTracteur || importData.tracteurImport || 'Pending'}</p>
+                                            </div>
+                                            <div className="spec-item">
+                                                <p className="spec-label">Route Path</p>
+                                                <p className="spec-val">{importData.trajet || importData.location || 'Calculated'}</p>
+                                            </div>
+                                            <div className="spec-item">
+                                                <p className="spec-label">Expected Completion</p>
+                                                <p className="spec-val">{importData.dateLivraison || 'In Transit'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                    <p>💬 Chat will appear once your shipment is assigned.</p>
+                                    <p>📁 Your document vault will appear once your shipment is assigned.</p>
                                 </div>
                             )}
                         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './GroupChatHub.css';
+import { API_BASE_URL, UPLOAD_BASE_URL } from '../../api';
 
 const MOCK_MESSAGES = [
     { id: 1, sender: 'System', text: 'Chat initialized.', type: 'system', timestamp: '09:00' },
@@ -17,7 +18,7 @@ const GroupChatHub = ({ reference, importId, accessCode, currentUserType = 'Work
         const fetchMessages = async () => {
             if (!importId) return;
             try {
-                const response = await fetch(`http://localhost:5000/api/chat/${importId}`);
+                const response = await fetch(`${API_BASE_URL}/chat/${importId}`);
                 const result = await response.json();
 
                 // Keep the system message + API messages
@@ -63,7 +64,7 @@ const GroupChatHub = ({ reference, importId, accessCode, currentUserType = 'Work
         };
 
         try {
-            const res = await fetch(`http://localhost:5000/api/chat/${importId}`, {
+            const res = await fetch(`${API_BASE_URL}/chat/${importId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -78,7 +79,7 @@ const GroupChatHub = ({ reference, importId, accessCode, currentUserType = 'Work
                     const fakeAvis = "Here is the avis text: Matricule: 9876-B-12, Port: Tanger Med, Location: Zone Franche";
 
                     const clientPayload = { senderType: 'Client', text: fakeAvis, type: 'text', fileType: null };
-                    const cRes = await fetch(`http://localhost:5000/api/chat/${importId}`, {
+                    const cRes = await fetch(`${API_BASE_URL}/chat/${importId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(clientPayload)
@@ -107,7 +108,7 @@ const GroupChatHub = ({ reference, importId, accessCode, currentUserType = 'Work
         formData.append('file', file);
 
         try {
-            const res = await fetch(`http://localhost:5000/api/chat/${importId}`, {
+            const res = await fetch(`${API_BASE_URL}/chat/${importId}`, {
                 method: 'POST',
                 // No 'Content-Type' header: browser automatically sets it with boundary for FormData
                 body: formData
@@ -169,7 +170,7 @@ const GroupChatHub = ({ reference, importId, accessCode, currentUserType = 'Work
                                     {msg.type === 'file' && (
                                         <div className="file-attachment">
                                             {msg.fileName ? (
-                                                <a href={`http://localhost:5000/uploads/${msg.fileName}`} target="_blank" rel="noopener noreferrer">
+                                                <a href={`${UPLOAD_BASE_URL}/${msg.fileName}`} target="_blank" rel="noopener noreferrer">
                                                     <i className="file-icon">📄</i> {msg.text}
                                                 </a>
                                             ) : (

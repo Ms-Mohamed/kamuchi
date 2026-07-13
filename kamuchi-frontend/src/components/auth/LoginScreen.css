@@ -44,30 +44,27 @@
     font-size: 0.9rem;
 }
 
-.role-selector {
-    display: flex;
-    gap: 1rem;
+.logo-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
 }
 
-.role-btn {
-    flex: 1;
-    padding: 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 4px;
-    background: white;
-    transition: all 0.2s;
+.login-footer {
+    margin-top: 2rem;
+    text-align: center;
+    border-top: 1px solid var(--border-light);
+    padding-top: 1.5rem;
 }
 
-.role-btn.active {
-    background: var(--light-blue);
-    border-color: var(--primary-blue);
-    color: var(--primary-blue);
-    font-weight: 500;
+.login-footer p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 .login-submit {
-    width: 100%;
-    padding: 0.75rem;
-    font-size: 1rem;
-    margin-top: 1rem;
+    transition: transform 0.2s;
+}
+
+.login-submit:active {
+    transform: scale(0.98);
 }

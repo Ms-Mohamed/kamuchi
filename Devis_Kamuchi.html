@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devis - Application Web</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 10mm auto;
+            border: 1px solid #D3D3D3;
+            border-radius: 5px;
+            background: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+        }
+        .header-left h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .header-left p {
+            margin: 5px 0 0 0;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+        }
+        .info-block {
+            width: 45%;
+        }
+        .info-block h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .info-block p {
+            margin: 5px 0;
+            font-size: 15px;
+        }
+        .context-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .context-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        td {
+            font-size: 14px;
+            vertical-align: top;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .totals {
+            width: 50%;
+            float: right;
+            margin-bottom: 40px;
+        }
+        .totals table {
+            margin-bottom: 0;
+        }
+        .totals th, .totals td {
+            border-bottom: none;
+            padding: 8px 15px;
+        }
+        .totals tr.discount {
+            color: #e74c3c;
+        }
+        .totals tr.final-total {
+            border-top: 2px solid #333;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+        .advantages {
+            margin-bottom: 40px;
+        }
+        .advantages h3 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .advantages ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+        .advantages li {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .advantages li strong {
+            color: #34495e;
+        }
+        .footer {
+            margin-top: 50px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .signature-box {
+            margin-top: 40px;
+            width: 300px;
+        }
+        .signature-box p {
+            margin: 0 0 60px 0;
+            font-weight: bold;
+        }
+        .signature-line {
+            border-top: 1px dashed #333;
+            text-align: center;
+            padding-top: 5px;
+        }
+        
+        @media print {
+            body {
+                background-color: white;
+            }
+            .page {
+                margin: 0;
+                border: none;
+                box-shadow: none;
+                width: 100%;
+                height: 100%;
+                padding: 0;
+            }
+            .context-box {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="header-left">
+                <h1>DEVIS</h1>
+                <p>N° 2026-08-001</p>
+            </div>
+            <div class="header-right text-right">
+                <p><strong>Date :</strong> 3 Juillet 2026</p>
+                <p><strong>Valable jusqu'au :</strong> 3 Août 2026</p>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-block">
+                <h3>Émetteur</h3>
+                <p><strong>Mohamed Ousellam</strong></p>
+                <p>Élève Ingénieur en Big Data & IA</p>
+                <p>Tél : [Votre Numéro]</p>
+                <p>Email : [Votre Email]</p>
+            </div>
+            <div class="info-block">
+                <h3>Client</h3>
+                <p><strong>[Nom du Client / Entreprise]</strong></p>
+                <p>[Adresse du Client]</p>
+                <p>[Ville], Maroc</p>
+            </div>
+        </div>
+
+        <div class="context-box">
+            <strong>Objet : Conception, Développement et Déploiement d'une Plateforme Web de Gestion</strong>
+            <p style="margin: 0;">Ce devis fait suite à la phase de test (15 au 31 juillet) et à la mise en production officielle de l'application le 1er août. Le tarif global présenté ci-dessous inclut une remise commerciale exceptionnelle (dédommagement), appliquée en raison du délai de livraison rallongé causé par mes obligations universitaires (période d'examens).</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="10%">Réf.</th>
+                    <th width="70%">Désignation de la prestation</th>
+                    <th width="20%" class="text-right">Prix</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">01</td>
+                    <td>
+                        <strong>Architecture & Base de Données</strong><br>
+                        Mise en place de l'infrastructure sécurisée (PostgreSQL, Prisma).<br>
+                        Configuration de l'authentification et de la sécurité des accès.
+                    </td>
+                    <td class="text-right">Inclus</td>
+                </tr>
+                <tr>
+                    <td class="text-center">02</td>
+                    <td>
+                        <strong>Module : Gestion des Travailleurs & Logistique</strong><br>
+                        Développement de l'interface de gestion (CRUD).<br>
+                        Automatisation de l'import/export des données (Excel/CSV).
+                    </td>
+                    <td class="text-right">Inclus</td>
+                </tr>
+                <tr>
+                    <td class="text-center">03</td>
+                    <td>
+                        <strong>Module Sur-Mesure : Espace "Ghizlane"</strong><br>
+                        Création de workflows spécifiques et numérisation des processus dédiés.
+                    </td>
+                    <td class="text-right">Inclus</td>
+                </tr>
+                <tr>
+                    <td class="text-center">04</td>
+                    <td>
+                        <strong>Dashboard Administrateur & Analytique</strong><br>
+                        Création d'un tableau de bord de suivi.<br>
+                        Calcul et affichage des statistiques clés en temps réel.
+                    </td>
+                    <td class="text-right">Inclus</td>
+                </tr>
+                <tr>
+                    <td class="text-center">05</td>
+                    <td>
+                        <strong>Déploiement & Suivi (Phase de test)</strong><br>
+                        Hébergement, configuration serveur et mise en production.<br>
+                        Suivi technique et correctifs durant la phase de test de 2 semaines.
+                    </td>
+                    <td class="text-right">Inclus</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="clearfix">
+            <div class="totals">
+                <table>
+                    <tr>
+                        <td class="text-right">Total Brut Estimé (Tarif Standard)</td>
+                        <td class="text-right" style="text-decoration: line-through; color: #7f8c8d;">7 500,00 DH</td>
+                    </tr>
+                    <tr class="discount">
+                        <td class="text-right">Remise Commerciale (Dédommagement)</td>
+                        <td class="text-right">- 2 500,00 DH</td>
+                    </tr>
+                    <tr class="final-total">
+                        <td class="text-right">TOTAL NET À PAYER</td>
+                        <td class="text-right">5 000,00 DH</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="advantages">
+            <h3>Bilan Technique : Avantages du nouveau système</h3>
+            <p style="font-size: 14px; margin-top: 0;">La transition vers cette nouvelle plateforme apporte une modernisation majeure par rapport aux anciennes méthodes de gestion manuelles :</p>
+            <ul>
+                <li><strong>Zéro perte de données et Centralisation :</strong> Vos informations ne sont plus éparpillées sur des fichiers locaux. Elles sont centralisées, sauvegardées et protégées dans une base de données robuste.</li>
+                <li><strong>Gain de Temps et Automatisation :</strong> Le traitement des fichiers via l'Import/Export automatisé élimine les erreurs humaines et supprime les heures de saisie manuelle.</li>
+                <li><strong>Processus Fiabilisés :</strong> La digitalisation de l'espace de travail (Module Ghizlane) permet de sécuriser les processus de validation et de clarifier les responsabilités.</li>
+                <li><strong>Visibilité Instantanée :</strong> Le Dashboard vous offre une vue globale et instantanée sur votre activité (statistiques générées en temps réel).</li>
+                <li><strong>Technologie Évolutive :</strong> L'application est construite sur des standards modernes (Next.js), assurant une navigation rapide et la possibilité d'ajouter de futures fonctionnalités sans refonte totale.</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>Conditions de paiement :</strong> Paiement exigible à réception de la facture. <br>
+            TVA non applicable, article 89 ter du Code Général des Impôts.</p>
+            <p>RIB : [Votre RIB à 24 chiffres] - [Nom de la Banque]</p>
+        </div>
+
+        <div class="signature-box">
+            <p>Signature (Émetteur) :</p>
+            <div class="signature-line">
+                Mohamed Ousellam
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
