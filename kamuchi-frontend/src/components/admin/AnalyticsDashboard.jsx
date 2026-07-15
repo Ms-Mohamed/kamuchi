@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Package, CheckCircle, Clock, AlertTriangle, ArrowUpRight, DollarSign, ArrowDownRight, Activity } from 'lucide-react';
 import './AnalyticsDashboard.css';
-import { API_BASE_URL } from '../../api';
+import { apiFetchJson } from '../../api';
 
 const AnalyticsDashboard = () => {
     const [currency, setCurrency] = useState('MAD');
@@ -23,14 +23,14 @@ const AnalyticsDashboard = () => {
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                const [impRes, expRes, finRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/logistics-imports`),
-                    fetch(`${API_BASE_URL}/logistics-exports`),
-                    fetch(`${API_BASE_URL}/analytics/financials`)
+                const [impData, expData, finData] = await Promise.all([
+                    apiFetchJson('/logistics-imports', {}, []),
+                    apiFetchJson('/logistics-exports', {}, []),
+                    apiFetchJson('/analytics/financials', {}, {
+                        totalRevenue: 0, totalUnpaid: 0, totalExpenses: 0,
+                        tracteurExpenses: 0, fournisseurExpenses: 0, netProfit: 0
+                    })
                 ]);
-                const impData = await impRes.json();
-                const expData = await expRes.json();
-                const finData = await finRes.json();
                 setData({ imports: impData, exports: expData });
                 setFinancials(finData);
                 setLoading(false);

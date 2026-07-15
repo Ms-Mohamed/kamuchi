@@ -10,6 +10,12 @@ const jwt = require('jsonwebtoken');
 const { authMiddleware, adminMiddleware, JWT_SECRET } = require('./middleware/auth');
 
 const prisma = new PrismaClient();
+
+function parseIntParam(value) {
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
+}
+
 const app = express();
 
 // Ensure uploads directory exists
@@ -72,17 +78,41 @@ async function createNotification(role, title, message, type = 'INFO', userId = 
 }
 
 // ==========================================
+// FIELD WHITELISTS — prevents mass-assignment on PUT routes
+// id, createdAt, groupId are intentionally excluded (groupId is managed by link-* routes only)
+const IMPORT_UPDATABLE_FIELDS = [
+    'reference', 'clientReference', 'clientName', 'dateEmbarquement',
+    'matriculeRemorque', 'matriculeTracteur', 'dateSortiePort', 'dateLivraison',
+    'trajet', 'portOfEntry', 'montant', 'extras', 'visite',
+    'redCode', 'redCodePrice', 'status'
+];
 
-app.get('/api/clients', async (req, res) => {
+const EXPORT_UPDATABLE_FIELDS = [
+    'reference', 'clientReference', 'clientName', 'dateChargement',
+    'matriculeRemorque', 'chargement', 'dechargement', 'tracteur',
+    'embarquementAvec', 'portOfEntry', 'montant', 'redCode', 'redCodePrice',
+    'roroRopax', 't6bisDays', 't6bisPrix', 'fraisSupp', 'commentaires', 'status'
+];
+
+function pickFields(body, allowedFields) {
+    const data = {};
+    for (const field of allowedFields) {
+        if (field in body) data[field] = body[field];
+    }
+    return data;
+}
+// ==========================================
+
+app.get('/api/clients', authMiddleware, async (req, res, next) => {
     try {
         const clients = await prisma.client.findMany();
         res.json(clients);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', authMiddleware, async (req, res, next) => {
     try {
         const { reference, name, accessCode, paymentTerms } = req.body;
         const newClient = await prisma.client.create({
@@ -95,16 +125,18 @@ app.post('/api/clients', async (req, res) => {
         });
         res.status(201).json(newClient);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/clients/:id', async (req, res) => {
+app.put('/api/clients/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const { name, accessCode, paymentTerms } = req.body;
         const updated = await prisma.client.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: {
                 name,
                 accessCode,
@@ -113,7 +145,7 @@ app.put('/api/clients/:id', async (req, res) => {
         });
         res.json(updated);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -121,55 +153,40 @@ app.put('/api/clients/:id', async (req, res) => {
 // IMPORTS API
 // ==========================================
 
-app.get('/api/imports', async (req, res) => {
+app.get('/api/imports', authMiddleware, async (req, res, next) => {
     try {
         const imports = await prisma.importTracking.findMany({
             include: { client: true }
         });
         res.json(imports);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/imports', authMiddleware, async (req, res) => {
+app.post('/api/imports', authMiddleware, async (req, res, next) => {
     try {
         const newImport = await prisma.importTracking.create({
             data: req.body
         });
         res.status(201).json(newImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/imports/:id', authMiddleware, async (req, res) => {
+app.put('/api/imports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const updatedImport = await prisma.importTracking.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: req.body
         });
         res.json(updatedImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/imports/:id', authMiddleware, async (req, res) => {
-    const { id } = req.params;
-    try {
-        // First, delete related chat messages to avoid foreign key constraints
-        await prisma.chatMessage.deleteMany({
-            where: { importId: Number(id) }
-        });
-        // Then delete the import
-        const deletedImport = await prisma.importTracking.delete({
-            where: { id: Number(id) }
-        });
-        res.json(deletedImport);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -177,31 +194,33 @@ app.delete('/api/imports/:id', authMiddleware, async (req, res) => {
 // LOGISTICS IMPORTS API
 // ==========================================
 
-app.get('/api/logistics-imports', async (req, res) => {
+app.get('/api/logistics-imports', authMiddleware, async (req, res, next) => {
     try {
         const imports = await prisma.logisticsImport.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(imports);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.get('/api/logistics-imports/:id', async (req, res) => {
+app.get('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const operation = await prisma.logisticsImport.findUnique({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         if (!operation) return res.status(404).json({ error: 'Operation not found' });
         res.json(operation);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/logistics-imports', authMiddleware, async (req, res) => {
+app.post('/api/logistics-imports', authMiddleware, async (req, res, next) => {
     try {
         const newImport = await prisma.logisticsImport.create({
             data: req.body
@@ -212,17 +231,23 @@ app.post('/api/logistics-imports', authMiddleware, async (req, res) => {
         
         res.status(201).json(newImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/logistics-imports/:id', authMiddleware, async (req, res) => {
+app.put('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
+    const data = pickFields(req.body, IMPORT_UPDATABLE_FIELDS);
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided to update.' });
+    }
     try {
-        const oldImport = await prisma.logisticsImport.findUnique({ where: { id: Number(id) } });
+        const oldImport = await prisma.logisticsImport.findUnique({ where: { id: parsedId } });
         const updatedImport = await prisma.logisticsImport.update({
-            where: { id: Number(id) },
-            data: req.body
+            where: { id: parsedId },
+            data
         });
 
         // Log if status changed
@@ -235,44 +260,50 @@ app.put('/api/logistics-imports/:id', authMiddleware, async (req, res) => {
 
         res.json(updatedImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/logistics-imports/:id', authMiddleware, async (req, res) => {
+app.delete('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const deletedImport = await prisma.logisticsImport.delete({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         
         await logAction(null, 'System', 'DELETE', 'IMPORT', id, deletedImport);
         
         res.json(deletedImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/logistics-imports/:id/link-export', authMiddleware, async (req, res) => {
+app.post('/api/logistics-imports/:id/link-export', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
-        const importOp = await prisma.logisticsImport.findUnique({ where: { id: Number(id) } });
+        const importOp = await prisma.logisticsImport.findUnique({ where: { id: parsedId } });
         if (!importOp) return res.status(404).json({ error: 'Import operation not found' });
 
         // Use existing groupId or create new one
         const groupId = importOp.groupId || require('crypto').randomUUID();
 
+        const operations = [];
+
         // Update Import with groupId if it doesn't have one
         if (!importOp.groupId) {
-            await prisma.logisticsImport.update({
-                where: { id: Number(id) },
+            operations.push(prisma.logisticsImport.update({
+                where: { id: parsedId },
                 data: { groupId }
-            });
+            }));
         }
 
         // Create linked Export
-        const newExport = await prisma.logisticsExport.create({
+        operations.push(prisma.logisticsExport.create({
             data: {
                 reference: importOp.reference,
                 clientReference: importOp.clientReference,
@@ -280,13 +311,16 @@ app.post('/api/logistics-imports/:id/link-export', authMiddleware, async (req, r
                 groupId: groupId,
                 status: 'Not Started'
             }
-        });
+        }));
+
+        const results = await prisma.$transaction(operations);
+        const newExport = importOp.groupId ? results[0] : results[1];
 
         await logAction(null, 'System', 'LINK_EXPORT', 'IMPORT', id, { groupId, exportId: newExport.id });
         
         res.status(201).json(newExport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -294,31 +328,33 @@ app.post('/api/logistics-imports/:id/link-export', authMiddleware, async (req, r
 // LOGISTICS EXPORTS API
 // ==========================================
 
-app.get('/api/logistics-exports', async (req, res) => {
+app.get('/api/logistics-exports', authMiddleware, async (req, res, next) => {
     try {
         const exportsList = await prisma.logisticsExport.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(exportsList);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.get('/api/logistics-exports/:id', async (req, res) => {
+app.get('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const operation = await prisma.logisticsExport.findUnique({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         if (!operation) return res.status(404).json({ error: 'Operation not found' });
         res.json(operation);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/logistics-exports', authMiddleware, async (req, res) => {
+app.post('/api/logistics-exports', authMiddleware, async (req, res, next) => {
     try {
         const newExport = await prisma.logisticsExport.create({
             data: req.body
@@ -329,17 +365,23 @@ app.post('/api/logistics-exports', authMiddleware, async (req, res) => {
 
         res.status(201).json(newExport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/logistics-exports/:id', authMiddleware, async (req, res) => {
+app.put('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
+    const data = pickFields(req.body, EXPORT_UPDATABLE_FIELDS);
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided to update.' });
+    }
     try {
-        const oldExport = await prisma.logisticsExport.findUnique({ where: { id: Number(id) } });
+        const oldExport = await prisma.logisticsExport.findUnique({ where: { id: parsedId } });
         const updatedExport = await prisma.logisticsExport.update({
-            where: { id: Number(id) },
-            data: req.body
+            where: { id: parsedId },
+            data
         });
 
         // Log if status changed
@@ -352,44 +394,50 @@ app.put('/api/logistics-exports/:id', authMiddleware, async (req, res) => {
 
         res.json(updatedExport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/logistics-exports/:id', authMiddleware, async (req, res) => {
+app.delete('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const deletedExport = await prisma.logisticsExport.delete({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         
         await logAction(null, 'System', 'DELETE', 'EXPORT', id, deletedExport);
 
         res.json(deletedExport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/logistics-exports/:id/link-import', authMiddleware, async (req, res) => {
+app.post('/api/logistics-exports/:id/link-import', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
-        const exportOp = await prisma.logisticsExport.findUnique({ where: { id: Number(id) } });
+        const exportOp = await prisma.logisticsExport.findUnique({ where: { id: parsedId } });
         if (!exportOp) return res.status(404).json({ error: 'Export operation not found' });
 
         // Use existing groupId or create new one
         const groupId = exportOp.groupId || require('crypto').randomUUID();
 
+        const operations = [];
+
         // Update Export with groupId if it doesn't have one
         if (!exportOp.groupId) {
-            await prisma.logisticsExport.update({
-                where: { id: Number(id) },
+            operations.push(prisma.logisticsExport.update({
+                where: { id: parsedId },
                 data: { groupId }
-            });
+            }));
         }
 
         // Create linked Import
-        const newImport = await prisma.logisticsImport.create({
+        operations.push(prisma.logisticsImport.create({
             data: {
                 reference: exportOp.reference,
                 clientReference: exportOp.clientReference,
@@ -397,13 +445,16 @@ app.post('/api/logistics-exports/:id/link-import', authMiddleware, async (req, r
                 groupId: groupId,
                 status: 'Not Started'
             }
-        });
+        }));
+
+        const results = await prisma.$transaction(operations);
+        const newImport = exportOp.groupId ? results[0] : results[1];
 
         await logAction(null, 'System', 'LINK_IMPORT', 'EXPORT', id, { groupId, importId: newImport.id });
         
         res.status(201).json(newImport);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -411,23 +462,25 @@ app.post('/api/logistics-exports/:id/link-import', authMiddleware, async (req, r
 // LOGISTICS DOCUMENTS API
 // ==========================================
 
-app.get('/api/logistics-documents/:operationType/:operationId', async (req, res) => {
+app.get('/api/logistics-documents/:operationType/:operationId', authMiddleware, async (req, res, next) => {
     const { operationType, operationId } = req.params;
+    const parsedOperationId = parseIntParam(operationId);
+    if (parsedOperationId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const documents = await prisma.logisticsDocument.findMany({
             where: {
                 operationType: operationType.toUpperCase(),
-                operationId: Number(operationId)
+                operationId: parsedOperationId
             },
             orderBy: { createdAt: 'desc' }
         });
         res.json(documents);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/logistics-documents/:operationType/:operationId/:documentType', authMiddleware, upload.single('file'), async (req, res) => {
+app.post('/api/logistics-documents/:operationType/:operationId/:documentType', authMiddleware, upload.single('file'), async (req, res, next) => {
     const { operationType, operationId, documentType } = req.params;
     
     if (!req.file) {
@@ -438,7 +491,7 @@ app.post('/api/logistics-documents/:operationType/:operationId/:documentType', a
         const newDoc = await prisma.logisticsDocument.create({
             data: {
                 operationType: operationType.toUpperCase(),
-                operationId: Number(operationId),
+                operationId: parsedOperationId,
                 documentType: documentType.toUpperCase(),
                 fileName: req.file.filename,
                 originalName: req.file.originalname
@@ -449,15 +502,17 @@ app.post('/api/logistics-documents/:operationType/:operationId/:documentType', a
         
         res.status(201).json(newDoc);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res) => {
+app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const doc = await prisma.logisticsDocument.findUnique({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
 
         if (doc) {
@@ -466,12 +521,12 @@ app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res) => {
                 fs.unlinkSync(filePath);
             }
             await prisma.logisticsDocument.delete({
-                where: { id: Number(id) }
+                where: { id: parsedId }
             });
         }
         res.json({ message: 'Document deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -479,7 +534,7 @@ app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res) => {
 // AUTH API
 // ==========================================
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res, next) => {
     const { username, identifier, password } = req.body;
     const loginId = identifier || username;
 
@@ -558,11 +613,11 @@ app.post('/api/auth/login', async (req, res) => {
         // 3. Neither found
         return res.status(401).json({ error: 'Invalid credentials' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.get('/api/auth/me', authMiddleware, async (req, res) => {
+app.get('/api/auth/me', authMiddleware, async (req, res, next) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.user.userId },
@@ -571,7 +626,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json(user);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -579,18 +634,18 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 // USER MANAGEMENT API
 // ==========================================
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authMiddleware, async (req, res, next) => {
     try {
         const users = await prisma.user.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(users);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
+app.post('/api/users', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { username, role, password } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password || 'kamuchi123', 10);
@@ -603,42 +658,48 @@ app.post('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
         });
         res.status(201).json(newUser);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     const { role } = req.body;
     try {
         const updatedUser = await prisma.user.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: { role: role.toUpperCase() }
         });
         res.json(updatedUser);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         await prisma.user.delete({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         res.json({ message: 'User deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/users/:id/generate-recovery', async (req, res) => {
+app.post('/api/users/:id/generate-recovery', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
         const user = await prisma.user.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: { 
                 recoveryCode: code,
                 recoveryCodeUsed: false
@@ -646,7 +707,7 @@ app.post('/api/users/:id/generate-recovery', async (req, res) => {
         });
         res.json({ recoveryCode: code });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -691,21 +752,25 @@ seedAdmin();
 // CHAT API
 // ==========================================
 
-app.get('/api/chat/:importId', async (req, res) => {
+app.get('/api/chat/:importId', authMiddleware, async (req, res, next) => {
     const { importId } = req.params;
+    const parsedImportId = parseIntParam(importId);
+    if (parsedImportId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const messages = await prisma.chatMessage.findMany({
-            where: { importId: Number(importId) },
+            where: { importId: parsedImportId },
             orderBy: { timestamp: 'asc' }
         });
         res.json(messages);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/chat/:importId', upload.single('file'), async (req, res) => {
+app.post('/api/chat/:importId', authMiddleware, upload.single('file'), async (req, res, next) => {
     const { importId } = req.params;
+    const parsedImportId = parseIntParam(importId);
+    if (parsedImportId === null) return res.status(400).json({ error: "Invalid id parameter" });
     const { senderType, text, type, fileType } = req.body;
     let fileName = null;
 
@@ -716,7 +781,7 @@ app.post('/api/chat/:importId', upload.single('file'), async (req, res) => {
     try {
         const newMessage = await prisma.chatMessage.create({
             data: {
-                importId: Number(importId),
+                importId: parsedImportId,
                 senderType,
                 text,
                 type,
@@ -726,7 +791,7 @@ app.post('/api/chat/:importId', upload.single('file'), async (req, res) => {
         });
         res.status(201).json(newMessage);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -734,7 +799,7 @@ app.post('/api/chat/:importId', upload.single('file'), async (req, res) => {
 // NOTIFICATIONS API
 // ==========================================
 
-app.get('/api/notifications', async (req, res) => {
+app.get('/api/notifications', authMiddleware, async (req, res, next) => {
     const { role, userId } = req.query;
     try {
         const where = { isRead: false };
@@ -748,24 +813,26 @@ app.get('/api/notifications', async (req, res) => {
         });
         res.json(notifications);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/notifications/:id/read', async (req, res) => {
+app.put('/api/notifications/:id/read', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         await prisma.notification.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: { isRead: true }
         });
         res.json({ message: 'Notification marked as read' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/notifications/clear', async (req, res) => {
+app.delete('/api/notifications/clear', authMiddleware, async (req, res, next) => {
     const { role, userId } = req.query;
     try {
         const where = {};
@@ -778,7 +845,7 @@ app.delete('/api/notifications/clear', async (req, res) => {
         });
         res.json({ message: 'All notifications cleared' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -786,7 +853,7 @@ app.delete('/api/notifications/clear', async (req, res) => {
 // AUDIT LOGS API
 // ==========================================
 
-app.get('/api/audit-logs', async (req, res) => {
+app.get('/api/audit-logs', authMiddleware, async (req, res, next) => {
     try {
         const logs = await prisma.auditLog.findMany({
             orderBy: { createdAt: 'desc' },
@@ -794,7 +861,7 @@ app.get('/api/audit-logs', async (req, res) => {
         });
         res.json(logs);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -802,18 +869,18 @@ app.get('/api/audit-logs', async (req, res) => {
 // FOURNISSEUR API
 // ==========================================
 
-app.get('/api/fournisseurs', async (req, res) => {
+app.get('/api/fournisseurs', authMiddleware, async (req, res, next) => {
     try {
         const fournisseurs = await prisma.fournisseur.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(fournisseurs);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/fournisseurs', async (req, res) => {
+app.post('/api/fournisseurs', authMiddleware, async (req, res, next) => {
     try {
         const newFournisseur = await prisma.fournisseur.create({
             data: req.body
@@ -821,34 +888,38 @@ app.post('/api/fournisseurs', async (req, res) => {
         await logAction(null, 'System', 'CREATE', 'FOURNISSEUR', newFournisseur.id, newFournisseur);
         res.status(201).json(newFournisseur);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/fournisseurs/:id', async (req, res) => {
+app.put('/api/fournisseurs/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const updated = await prisma.fournisseur.update({
-            where: { id: Number(id) },
+            where: { id: parsedId },
             data: req.body
         });
         await logAction(null, 'System', 'UPDATE', 'FOURNISSEUR', id, req.body);
         res.json(updated);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/fournisseurs/:id', async (req, res) => {
+app.delete('/api/fournisseurs/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const deleted = await prisma.fournisseur.delete({
-            where: { id: Number(id) }
+            where: { id: parsedId }
         });
         await logAction(null, 'System', 'DELETE', 'FOURNISSEUR', id, deleted);
         res.json(deleted);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -856,18 +927,18 @@ app.delete('/api/fournisseurs/:id', async (req, res) => {
 // SUPPLIER API
 // ==========================================
 
-app.get('/api/suppliers', async (req, res) => {
+app.get('/api/suppliers', authMiddleware, async (req, res, next) => {
     try {
         const suppliers = await prisma.supplier.findMany({
             orderBy: { name: 'asc' }
         });
         res.json(suppliers);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/suppliers', async (req, res) => {
+app.post('/api/suppliers', authMiddleware, async (req, res, next) => {
     const { name } = req.body;
     try {
         const newSupplier = await prisma.supplier.create({
@@ -875,11 +946,11 @@ app.post('/api/suppliers', async (req, res) => {
         });
         res.status(201).json(newSupplier);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.get('/api/backup', (req, res) => {
+app.get('/api/backup', authMiddleware, (req, res) => {
     const dbPath = path.join(__dirname, 'prisma', 'dev.db');
     if (fs.existsSync(dbPath)) {
         res.download(dbPath, 'kamuchi_backup.db');
@@ -892,7 +963,7 @@ app.get('/api/backup', (req, res) => {
 // SETUP & UTILS 
 // ==========================================
 
-app.post('/api/setup', async (req, res) => {
+app.post('/api/setup', async (req, res, next) => {
     try {
         // 1. Create multiple clients
         const clientsData = [
@@ -1008,23 +1079,23 @@ app.post('/api/setup', async (req, res) => {
             logisticsCreated: 10
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
 // --- Invoice Endpoints ---
-app.get('/api/invoices', async (req, res) => {
+app.get('/api/invoices', authMiddleware, async (req, res, next) => {
     try {
         const invoices = await prisma.invoice.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(invoices);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/invoices', async (req, res) => {
+app.post('/api/invoices', authMiddleware, async (req, res, next) => {
     try {
         const { invoiceNumber, clientName, reference, dateFacture, montant, status, operationType, operationId, paymentDetail, paymentDate } = req.body;
         
@@ -1033,6 +1104,22 @@ app.post('/api/invoices', async (req, res) => {
             where: { operationId: operationId.toString(), operationType }
         });
         if (existing) return res.json(existing);
+
+        // Guard: operation must exist and be Completed before an invoice can be created
+        const parsedOpId = parseIntParam(operationId != null ? operationId.toString() : '');
+        if (parsedOpId === null) return res.status(400).json({ error: 'Invalid operationId.' });
+        let operation = null;
+        if (operationType === 'IMPORT') {
+            operation = await prisma.logisticsImport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
+        } else if (operationType === 'EXPORT') {
+            operation = await prisma.logisticsExport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
+        } else {
+            return res.status(400).json({ error: 'operationType must be IMPORT or EXPORT.' });
+        }
+        if (!operation) return res.status(404).json({ error: 'Operation not found.' });
+        if (operation.status !== 'Completed') {
+            return res.status(422).json({ error: 'Cannot create an invoice for an operation that is not yet completed.' });
+        }
 
         // Fetch client to get payment terms
         const client = await prisma.client.findUnique({
@@ -1065,13 +1152,15 @@ app.post('/api/invoices', async (req, res) => {
         });
         res.status(201).json(invoice);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/invoices/:id', async (req, res) => {
+app.put('/api/invoices/:id', authMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
         const { status, paymentDetail, paymentDate, paymentType } = req.body;
         const invoice = await prisma.invoice.update({
             where: { id: parseInt(id) },
@@ -1079,17 +1168,19 @@ app.put('/api/invoices/:id', async (req, res) => {
         });
         res.json(invoice);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/invoices/:id', async (req, res) => {
+app.delete('/api/invoices/:id', authMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
         await prisma.invoice.delete({ where: { id: parseInt(id) } });
         res.status(204).send();
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
@@ -1097,18 +1188,18 @@ app.delete('/api/invoices/:id', async (req, res) => {
 // TRACTEURS
 // ==========================================
 
-app.get('/api/tracteurs', async (req, res) => {
+app.get('/api/tracteurs', authMiddleware, async (req, res, next) => {
     try {
         const tracteurs = await prisma.tracteur.findMany({
             orderBy: { createdAt: 'desc' }
         });
         res.json(tracteurs);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.post('/api/tracteurs', async (req, res) => {
+app.post('/api/tracteurs', authMiddleware, async (req, res, next) => {
     try {
         const data = req.body;
         // Convert string fields to Float if needed, though they should be sent as numbers
@@ -1121,13 +1212,15 @@ app.post('/api/tracteurs', async (req, res) => {
         const tracteur = await prisma.tracteur.create({ data });
         res.status(201).json(tracteur);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.put('/api/tracteurs/:id', async (req, res) => {
+app.put('/api/tracteurs/:id', authMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
         const data = req.body;
         const floatFields = ['autres', 'autoroute', 'gasoil', 'deplacement', 'salaire', 'lavage', 'huil', 'reparation', 'traite', 'amende', 'prix'];
         floatFields.forEach(f => {
@@ -1141,24 +1234,26 @@ app.put('/api/tracteurs/:id', async (req, res) => {
         });
         res.json(tracteur);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
-app.delete('/api/tracteurs/:id', async (req, res) => {
+app.delete('/api/tracteurs/:id', authMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
         await prisma.tracteur.delete({ where: { id: parseInt(id) } });
         res.status(204).send();
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 
 // ==========================================
 // ANALYTICS & DASHBOARD STATS
 // ==========================================
-app.get('/api/analytics/financials', async (req, res) => {
+app.get('/api/analytics/financials', authMiddleware, async (req, res, next) => {
     try {
         // 1. Revenue (Paid Invoices)
         const paidInvoices = await prisma.invoice.findMany({ where: { status: 'Paid' }});
@@ -1193,7 +1288,7 @@ app.get('/api/analytics/financials', async (req, res) => {
             netProfit
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 

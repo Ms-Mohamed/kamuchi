@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ClientManager.css';
 import { useModal } from '../common/ModalContext';
-import { API_BASE_URL } from '../../api';
+import { apiFetch, apiFetchJson } from '../../api';
 
 const ClientManager = ({ user }) => {
     const isOpsManager = user?.role === 'OPS_MANAGER' || user?.role === 'ADMIN';
@@ -20,21 +20,15 @@ const ClientManager = ({ user }) => {
     }, []);
 
     const fetchClients = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/clients`);
-            const data = await res.json();
-            setClients(data);
-        } catch (err) {
-            console.error('Failed to fetch clients', err);
-        }
+        const data = await apiFetchJson('/clients', {}, []);
+        setClients(data);
     };
 
     const handleCreateClient = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${API_BASE_URL}/clients`, {
+            const res = await apiFetch('/clients', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
             if (res.ok) {

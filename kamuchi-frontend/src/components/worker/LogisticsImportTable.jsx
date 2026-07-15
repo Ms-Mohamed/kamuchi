@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import './TrackingTable.css';
 import './LogisticsModal.css';
 import LogisticsFilesModal from './LogisticsFilesModal';
-import { apiFetch, API_BASE_URL } from '../../api';
+import { apiFetch } from '../../api';
 import LogisticsInvoice from './LogisticsInvoice';
 import { useModal } from '../common/ModalContext';
 
@@ -406,11 +406,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
         if (!window.confirm(`Are you sure you want to link this operation to Export? This will create a new Export entry for ${row.clientName}.`)) return;
         
         try {
-            const token = localStorage.getItem('kamuchiToken');
-            const response = await fetch(`http://${window.location.hostname}:5000/api/logistics-imports/${row.id}/link-export`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await apiFetch(`/logistics-imports/${row.id}/link-export`, { method: 'POST' });
 
             if (!response.ok) throw new Error('Failed to link operation');
             
@@ -427,9 +423,8 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
         const invoiceNumber = `FL${Math.floor(1000 + Math.random() * 9000)}-2026`;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/invoices`, {
+            const res = await apiFetch('/invoices', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invoiceNumber,
                     clientName: row.clientName,

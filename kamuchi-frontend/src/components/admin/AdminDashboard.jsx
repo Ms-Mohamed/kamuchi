@@ -9,7 +9,7 @@ import SystemUserManager from './SystemUserManager';
 import AuditLogs from './AuditLogs';
 import NotificationCenter from '../common/NotificationCenter';
 import { useModal } from '../common/ModalContext';
-import { API_BASE_URL } from '../../api';
+import { apiFetchJson } from '../../api';
 
 const AdminDashboard = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -23,17 +23,12 @@ const AdminDashboard = ({ onLogout }) => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [logsRes, importsRes, exportsRes, usersRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/audit-logs`),
-                    fetch(`${API_BASE_URL}/logistics-imports`),
-                    fetch(`${API_BASE_URL}/logistics-exports`),
-                    fetch(`${API_BASE_URL}/users`)
+                const [logs, imports, exports, users] = await Promise.all([
+                    apiFetchJson('/audit-logs', {}, []),
+                    apiFetchJson('/logistics-imports', {}, []),
+                    apiFetchJson('/logistics-exports', {}, []),
+                    apiFetchJson('/users', {}, [])
                 ]);
-
-                const logs = await logsRes.json();
-                const imports = await importsRes.json();
-                const exports = await exportsRes.json();
-                const users = await usersRes.json();
 
                 // Calculate Stats
                 const totalVolume = imports.length + exports.length;

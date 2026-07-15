@@ -21,6 +21,9 @@ COPY . .
 # Ensure runtime directories exist
 RUN mkdir -p uploads prisma
 
+# Set node environment
+ENV NODE_ENV=production
+
 EXPOSE 5000
 
 # Startup is handled by docker-compose command to support volume-mounted schema

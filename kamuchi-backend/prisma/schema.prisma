@@ -58,7 +58,7 @@ model ImportTracking {
 model ChatMessage {
   id          Int            @id @default(autoincrement())
   importId    Int
-  importRef   ImportTracking @relation(fields: [importId], references: [id])
+  importRef   ImportTracking @relation(fields: [importId], references: [id], onDelete: Cascade)
   senderType  String         // 'Worker' or 'Client'
   text        String
   type        String         // 'text' or 'file'

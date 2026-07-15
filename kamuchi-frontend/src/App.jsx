@@ -6,7 +6,7 @@ import ClientDashboard from './components/client/ClientDashboard'
 import './index.css'
 
 import { ModalProvider } from './components/common/ModalContext'
-import { API_BASE_URL } from './api'
+import { apiFetch } from './api'
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -30,9 +30,7 @@ function App() {
     const token = localStorage.getItem('kamuchiToken');
     if (token && !user) {
       // Attempt to fetch current user data if we have a token but no user object
-      fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      apiFetch('/auth/me')
       .then(res => {
         if (res.ok) return res.json();
         throw new Error('Session expired');

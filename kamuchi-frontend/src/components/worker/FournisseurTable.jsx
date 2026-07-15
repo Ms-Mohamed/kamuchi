@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import './TrackingTable.css';
 import './LogisticsModal.css';
 import { useModal } from '../common/ModalContext';
-import { API_BASE_URL } from '../../api';
+import { apiFetch, apiFetchJson } from '../../api';
 
 const STATUS_COLORS = {
     'Unpaid': 'var(--status-not-started)',
@@ -36,21 +36,13 @@ const FournisseurTable = () => {
     const [currencyMode, setCurrencyMode] = useState('MAD');
 
     const fetchFournisseurs = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/fournisseurs`);
-            setData(await response.json());
-        } catch (error) {
-            console.error("Failed to fetch fournisseurs:", error);
-        }
+        const data = await apiFetchJson('/fournisseurs', {}, []);
+        setData(data);
     };
 
     const fetchSuppliers = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/suppliers`);
-            setSuppliers(await response.json());
-        } catch (error) {
-            console.error("Failed to fetch suppliers:", error);
-        }
+        const data = await apiFetchJson('/suppliers', {}, []);
+        setSuppliers(data);
     };
 
     useEffect(() => {
@@ -62,9 +54,8 @@ const FournisseurTable = () => {
         e.preventDefault();
         if (!newSupplierName.trim()) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/suppliers`, {
+            const res = await apiFetch('/suppliers', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: newSupplierName })
             });
             if (res.ok) {
@@ -80,9 +71,8 @@ const FournisseurTable = () => {
 
     const handleStatusChange = async (id, newStatus) => {
         try {
-            await fetch(`${API_BASE_URL}/fournisseurs/${id}`, {
+            await apiFetch(`/fournisseurs/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             });
             fetchFournisseurs();
@@ -100,9 +90,7 @@ const FournisseurTable = () => {
 
         if (confirmed) {
             try {
-                await fetch(`${API_BASE_URL}/fournisseurs/${id}`, {
-                    method: 'DELETE'
-                });
+                await apiFetch(`/fournisseurs/${id}`, { method: 'DELETE' });
                 fetchFournisseurs();
             } catch (error) {
                 console.error("Delete failed", error);
@@ -138,13 +126,10 @@ const FournisseurTable = () => {
             }
 
             const method = editingId ? 'PUT' : 'POST';
-            const url = editingId 
-                ? `${API_BASE_URL}/fournisseurs/${editingId}`
-                : `${API_BASE_URL}/fournisseurs`;
+            const endpoint = editingId ? `/fournisseurs/${editingId}` : '/fournisseurs';
 
-            const res = await fetch(url, {
+            const res = await apiFetch(endpoint, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             if (res.ok) {

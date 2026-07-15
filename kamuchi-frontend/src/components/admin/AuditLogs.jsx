@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { History, User, Activity, Clock, ShieldCheck } from 'lucide-react';
 import './AuditLogs.css';
-import { API_BASE_URL } from '../../api';
+import { apiFetchJson } from '../../api';
 
 const AuditLogs = () => {
     const [logs, setLogs] = useState([]);
@@ -10,12 +10,8 @@ const AuditLogs = () => {
     useEffect(() => {
         const fetchLogs = async () => {
             try {
-                // We'll need a backend endpoint for this. I'll add it in server.js next.
-                const res = await fetch(`${API_BASE_URL}/audit-logs`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setLogs(data);
-                }
+                const data = await apiFetchJson('/audit-logs', {}, []);
+                setLogs(data);
                 setLoading(false);
             } catch (error) {
                 console.error('Failed to fetch logs:', error);

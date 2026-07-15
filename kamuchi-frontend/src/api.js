@@ -34,6 +34,16 @@ export const apiFetch = async (endpoint, options = {}) => {
     return response;
 };
 
+export const apiFetchJson = async (endpoint, options = {}, fallback = null) => {
+    try {
+        const res = await apiFetch(endpoint, options);
+        if (!res.ok) return fallback;
+        return await res.json();
+    } catch {
+        return fallback;
+    }
+};
+
 export const apiUpload = async (endpoint, formData) => {
     const token = localStorage.getItem('kamuchiToken');
     

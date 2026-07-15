@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Check, Info, AlertCircle, Trash2 } from 'lucide-react';
 import './NotificationCenter.css';
-import { API_BASE_URL } from '../../api';
+import { apiFetch, apiFetchJson } from '../../api';
 
 const NotificationCenter = ({ role, userId }) => {
     const [notifications, setNotifications] = useState([]);
@@ -10,12 +10,9 @@ const NotificationCenter = ({ role, userId }) => {
 
     const fetchNotifications = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/notifications?role=${role || ''}&userId=${userId || ''}`);
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data);
-                setUnreadCount(data.filter(n => !n.isRead).length);
-            }
+            const data = await apiFetchJson(`/notifications?role=${role || ''}&userId=${userId || ''}`, {}, []);
+            setNotifications(data);
+            setUnreadCount(data.filter(n => !n.isRead).length);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         }
@@ -29,7 +26,7 @@ const NotificationCenter = ({ role, userId }) => {
 
     const markAsRead = async (id) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, { method: 'PUT' });
+            const res = await apiFetch(`/notifications/${id}/read`, { method: 'PUT' });
             if (res.ok) fetchNotifications();
         } catch (error) {
             console.error('Error marking as read:', error);
@@ -38,7 +35,7 @@ const NotificationCenter = ({ role, userId }) => {
 
     const clearAll = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/notifications/clear?role=${role || ''}&userId=${userId || ''}`, { method: 'DELETE' });
+            const res = await apiFetch(`/notifications/clear?role=${role || ''}&userId=${userId || ''}`, { method: 'DELETE' });
             if (res.ok) fetchNotifications();
         } catch (error) {
             console.error('Error clearing notifications:', error);

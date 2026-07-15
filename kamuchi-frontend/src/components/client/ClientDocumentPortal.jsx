@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Eye, Clock, ShieldCheck } from 'lucide-react';
 import './ClientDocumentPortal.css';
-import { API_BASE_URL, UPLOAD_BASE_URL } from '../../api';
+import { apiFetchJson, UPLOAD_BASE_URL } from '../../api';
 
 const ClientDocumentPortal = ({ operationId, operationType, reference }) => {
     const [documents, setDocuments] = useState([]);
@@ -12,12 +12,9 @@ const ClientDocumentPortal = ({ operationId, operationType, reference }) => {
         
         console.log(`[Vault] Fetching docs for ${operationType} #${operationId}`);
         try {
-            const res = await fetch(`${API_BASE_URL}/logistics-documents/${operationType}/${operationId}`);
-            if (res.ok) {
-                const data = await res.json();
-                console.log(`[Vault] Received ${data.length} docs`);
-                setDocuments(data);
-            }
+            const data = await apiFetchJson(`/logistics-documents/${operationType}/${operationId}`, {}, []);
+            console.log(`[Vault] Received ${data.length} docs`);
+            setDocuments(data);
         } catch (err) {
             console.error('[Vault] Error fetching documents:', err);
         } finally {

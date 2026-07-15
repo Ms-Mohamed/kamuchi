@@ -4,7 +4,7 @@ import ClientDocumentPortal from './ClientDocumentPortal';
 import NotificationCenter from '../common/NotificationCenter';
 import '../worker/WorkerDashboard.css';
 import './ClientDashboard.css';
-import { API_BASE_URL } from '../../api';
+import { apiFetchJson } from '../../api';
 
 const STATUS_CLASS = {
     'Not Started': 'status-not-started',
@@ -20,15 +20,11 @@ const ClientDashboard = ({ userRole, onLogout }) => {
         const fetchMyImport = async () => {
             try {
                 // Fetch from multiple sources to ensure we catch the correct operation
-                const [legacyRes, importsRes, exportsRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/imports`),
-                    fetch(`${API_BASE_URL}/logistics-imports`),
-                    fetch(`${API_BASE_URL}/logistics-exports`)
+                const [legacyData, importsData, exportsData] = await Promise.all([
+                    apiFetchJson('/imports', {}, []),
+                    apiFetchJson('/logistics-imports', {}, []),
+                    apiFetchJson('/logistics-exports', {}, [])
                 ]);
-
-                const legacyData = await legacyRes.json();
-                const importsData = await importsRes.json();
-                const exportsData = await exportsRes.json();
 
                 // 1. Try to match in modern imports
                 const matchedImport = importsData.find(imp => imp.reference === userRole);

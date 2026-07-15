@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useModal } from '../common/ModalContext';
-import { API_BASE_URL } from '../../api';
+import { apiFetch, apiFetchJson } from '../../api';
 
 const SystemUserManager = () => {
     const [users, setUsers] = useState([]);
@@ -10,15 +10,8 @@ const SystemUserManager = () => {
     const { showAlert, showConfirm } = useModal();
 
     const fetchUsers = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/users`);
-            if (res.ok) {
-                const data = await res.json();
-                setUsers(data);
-            }
-        } catch (err) {
-            console.error(err);
-        }
+        const data = await apiFetchJson('/users', {}, []);
+        setUsers(data);
     };
 
     useEffect(() => {
@@ -31,9 +24,8 @@ const SystemUserManager = () => {
 
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/users`, {
+            const res = await apiFetch('/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: newUsername, role: newRole })
             });
 
@@ -59,9 +51,8 @@ const SystemUserManager = () => {
         if (!confirmed) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+            const res = await apiFetch(`/users/${userId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ role: nextRole })
             });
             if (res.ok) fetchUsers();
@@ -80,9 +71,7 @@ const SystemUserManager = () => {
         if (!confirmed) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
-                method: 'DELETE'
-            });
+            const res = await apiFetch(`/users/${userId}`, { method: 'DELETE' });
             if (res.ok) fetchUsers();
         } catch (err) {
             console.error(err);
@@ -157,7 +146,7 @@ const SystemUserManager = () => {
                                             className="btn-secondary" 
                                             style={{marginRight: '0.75rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.5rem 1rem', borderColor: 'var(--primary-blue)', color: 'var(--primary-blue)'}}
                                             onClick={async () => {
-                                                const res = await fetch(`${API_BASE_URL}/users/${u.id}/generate-recovery`, { method: 'POST' });
+                                                const res = await apiFetch(`/users/${u.id}/generate-recovery`, { method: 'POST' });
                                                 if (res.ok) {
                                                     const data = await res.json();
                                                     showAlert(

@@ -12,7 +12,7 @@ services:
       - ./kamuchi-backend/uploads:/app/uploads
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=kamuchi-super-secret-key-2024
+      - JWT_SECRET=${JWT_SECRET}
     restart: unless-stopped
     command: >
       sh -c "chmod -R 777 /app/prisma /app/uploads &&

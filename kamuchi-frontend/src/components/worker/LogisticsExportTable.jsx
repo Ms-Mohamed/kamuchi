@@ -372,11 +372,7 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
         if (!window.confirm(`Are you sure you want to link this operation to Import? This will create a new Import entry for ${row.clientName}.`)) return;
         
         try {
-            const token = localStorage.getItem('kamuchiToken');
-            const response = await fetch(`http://${window.location.hostname}:5000/api/logistics-exports/${row.id}/link-import`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await apiFetch(`/logistics-exports/${row.id}/link-import`, { method: 'POST' });
 
             if (!response.ok) throw new Error('Failed to link operation');
             
