@@ -72,14 +72,13 @@ if (process.env.FRONTEND_ORIGIN) {
 
 app.use(cors({
     origin: (origin, callback) => {
-        // No Origin header means it's not a browser cross-origin request (curl, server-to-server,
-        // same-origin) — CORS doesn't apply to those in the first place.
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Allow same-origin, localhost, specified FRONTEND_ORIGIN, and any Vercel preview/production domains
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('vercel.app')) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
         }
-    }
+    },
 }));
 app.use(express.json());
 app.get('/uploads/:filename', (req, res) => {
@@ -1311,7 +1310,9 @@ app.use((err, req, res, next) => {
     }
 
     const status = err.status || err.statusCode || 500;
-    const message = err.message || 'Internal server error';
+    const message = process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : (err.message || 'Internal server error');
 
     res.status(status).json({ error: message });
 });
