@@ -7,7 +7,10 @@
     },
     {
       "src": "kamuchi-frontend/package.json",
-      "use": "@vercel/vite"
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
@@ -21,7 +24,11 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/kamuchi-frontend/$1"
+      "dest": "/kamuchi-frontend/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/kamuchi-frontend/dist/index.html"
     }
   ]
 }
