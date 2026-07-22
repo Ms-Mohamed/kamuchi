@@ -23,6 +23,18 @@
       "destination": "/kamuchi-backend/server.js"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/kamuchi-frontend/assets/$1"
+    },
+    {
+      "source": "/logo.jpeg",
+      "destination": "/kamuchi-frontend/logo.jpeg"
+    },
+    {
+      "source": "/vite.svg",
+      "destination": "/kamuchi-frontend/vite.svg"
+    },
+    {
       "source": "/(.*)",
       "destination": "/kamuchi-frontend/index.html"
     }
