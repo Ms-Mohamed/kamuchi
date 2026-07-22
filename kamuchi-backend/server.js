@@ -1318,6 +1318,10 @@ app.use((err, req, res, next) => {
     res.status(status).json({ error: message });
 });
 
-app.listen(5000, '0.0.0.0', () => {
-    console.log('Kamuchi Backend running on port 5000 (accessible on local network)');
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(5000, '0.0.0.0', () => {
+        console.log('Kamuchi Backend running on port 5000 (accessible on local network)');
+    });
+}
+
+module.exports = app;
