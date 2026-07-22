@@ -23,12 +23,11 @@
       "dest": "/kamuchi-backend/server.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/kamuchi-frontend/dist/$1"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/kamuchi-frontend/dist/index.html"
+      "dest": "/index.html"
     }
   ]
 }
