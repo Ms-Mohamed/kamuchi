@@ -12,3 +12,5 @@ yarn-error.log*
 prisma/dev.db
 prisma/dev.db-journal
 uploads/
+# dev-only tooling, never needed at runtime
+scripts/

@@ -41,6 +41,10 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 20px 48px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--minimal-border);
     margin-bottom: 4rem;
+    /* flex column so footer anchors to bottom via margin-top: auto */
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 /* Header */
@@ -50,19 +54,10 @@
     margin-bottom: 4rem;
 }
 
-.logo-section h1 {
-    font-size: 1.5rem;
-    font-weight: 900;
-    letter-spacing: -0.05em;
-    margin: 0;
-}
-
-.logo-section p {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--minimal-gray);
-    margin-top: 0.25rem;
+.company-logo {
+    height: 72px;
+    width: auto;
+    display: block;
 }
 
 .company-contact {
@@ -175,16 +170,28 @@
 /* Footer */
 .invoice-footer {
     border-top: 1px solid var(--minimal-border);
-    padding-top: 2rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    font-size: 0.75rem;
+    padding-top: 1.25rem;
+    text-align: center;
+    font-size: 0.72rem;
     color: var(--minimal-gray);
-    line-height: 1.6;
+    line-height: 1.75;
+    margin-top: auto;
 }
 
-.legal-ids {
-    text-align: right;
+.invoice-footer p {
+    margin: 0;
+}
+
+.footer-company {
+    font-size: 0.8rem;
+    color: var(--minimal-black);
+    margin-bottom: 0.1rem !important;
+}
+
+.footer-sarl {
+    font-weight: 400;
+    font-size: 0.7rem;
+    color: var(--minimal-gray);
 }
 
 /* ── File selector bar ── */
@@ -337,29 +344,55 @@
 }
 
 @media print {
+    @page {
+        size: A4;
+        margin: 1.5cm 2cm;
+    }
+
+    /* Hide the whole app, then re-reveal only the invoice overlay subtree */
+    body * {
+        visibility: hidden;
+    }
+
+    .invoice-overlay,
+    .invoice-overlay * {
+        visibility: visible;
+    }
+
     .no-print { display: none !important; }
+
     .invoice-overlay {
-        position: static;
+        position: absolute;
+        top: 0;
+        left: 0;
         padding: 0;
         background: white;
         overflow: visible;
+        display: block;
     }
+
     .invoice-paper {
         max-width: 100%;
+        width: 100%;
+        /* keep padding so summary/footer stay off the edge — @page margins add outer space */
         padding: 0;
         box-shadow: none;
         border: none;
         margin-bottom: 0;
+        min-height: 0;
     }
+
     .invoice-attachment-page {
         page-break-before: always;
         max-width: 100%;
         margin: 0;
     }
+
     .attachment-paper {
         box-shadow: none;
         border: none;
     }
+
     .attachment-iframe {
         height: 100vh;
     }

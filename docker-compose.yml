@@ -5,14 +5,15 @@ services:
     build:
       context: ./kamuchi-backend
     container_name: kamuchi-backend
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./kamuchi-backend/prisma:/app/prisma
       - ./kamuchi-backend/uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-}
     restart: unless-stopped
     command: >
       sh -c "chmod -R 777 /app/prisma /app/uploads &&

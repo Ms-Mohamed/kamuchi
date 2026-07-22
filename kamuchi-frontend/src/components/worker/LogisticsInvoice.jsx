@@ -146,13 +146,11 @@ const LogisticsInvoice = ({ data, onClose }) => {
             <div className="invoice-paper">
                 <header className="invoice-header">
                     <div className="logo-section">
-                        <h1>KAMUCHI TRANS</h1>
-                        <p>Transport & Logistique</p>
+                        <img src="/logo.jpeg" alt="Kamuchi Trans" className="company-logo" />
                     </div>
                     <div className="company-contact">
-                        <p>Rue Dr Faraj Imm. Jinane Etage 09 N°51</p>
-                        <p>Tanger, Maroc</p>
-                        <p>contact@kamuchitrans.com</p>
+                        <p>Rue Dr Faraj Immeuble Jinane Etage 09 N°51</p>
+                        <p>Tanger - Maroc</p>
                     </div>
                 </header>
 
@@ -215,16 +213,10 @@ const LogisticsInvoice = ({ data, onClose }) => {
                 </p>
 
                 <footer className="invoice-footer">
-                    <div className="payment-info">
-                        <strong>Bank Details</strong>
-                        <p>AttijariWafaba Bank</p>
-                        <p>RIB: 0076400014333000002371 93</p>
-                    </div>
-                    <div className="legal-ids">
-                        <p>KAMUCHI TRANS SARL</p>
-                        <p>ICE: 002698421000012</p>
-                        <p>RC: 112785 / IF: 48557676</p>
-                    </div>
+                    <p className="footer-company"><strong>KAMUCHI TRANS</strong> <span className="footer-sarl">SARL</span></p>
+                    <p>Adresse : Rue Dr Faraj Immeuble Jinane Etage 09 N°51 Tanger - Maroc</p>
+                    <p>ICE : 002698421000012 &nbsp;&middot;&nbsp; RC : 112785 &nbsp;&middot;&nbsp; PT : 50102541 &nbsp;&middot;&nbsp; IF : 48557676</p>
+                    <p>RIB : 007640001433300000237193 &nbsp;&middot;&nbsp; AttijariWafabank</p>
                 </footer>
             </div>
 

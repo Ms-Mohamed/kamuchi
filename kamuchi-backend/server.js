@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const { createClient } = require('@supabase/supabase-js');
 const { authMiddleware, adminMiddleware, JWT_SECRET } = require('./middleware/auth');
 
 const prisma = new PrismaClient();
@@ -18,27 +20,74 @@ function parseIntParam(value) {
 
 const app = express();
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
-}
+// Trusts the one hop from the nginx reverse proxy so req.ip (and the rate limiter below)
+// reads the real client IP from X-Forwarded-For instead of the proxy container's own IP.
+app.set('trust proxy', 1);
 
-// Configure multer storage
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+// Covers both the standard password path and the recovery-code path — they're the same
+// route (POST /api/auth/login tries password first, falls back to recovery code), so one
+// limiter here throttles brute-forcing either.
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+});
+
+// Configure Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+// Configure multer storage (memory for serverless)
+const storage = multer.memoryStorage();
+
+// Matches what the UI actually offers: PDF + scanned/photographed documents
+// (LogisticsFilesModal's dropzone accepts pdf/jpg/jpeg/png; LogisticsInvoice's
+// attachment viewer also expects gif).
+const ALLOWED_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    fileFilter: (req, file, cb) => {
+        if (ALLOWED_UPLOAD_MIME_TYPES.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            const err = new Error('Invalid file type. Allowed types: PDF, JPG, PNG, GIF.');
+            err.status = 400;
+            cb(err);
+        }
     }
 });
-const upload = multer({ storage: storage });
 
-app.use(cors());
+// Local dev origins are always allowed (Vite dev server + docker-compose nginx).
+// Not hosted yet (see CLAUDE.md) — FRONTEND_ORIGIN lets a real production origin be
+// added later via env var, no code change needed once one exists.
+const allowedOrigins = ['http://localhost:5173', 'http://localhost', 'http://localhost:80'];
+if (process.env.FRONTEND_ORIGIN) {
+    allowedOrigins.push(process.env.FRONTEND_ORIGIN);
+}
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // No Origin header means it's not a browser cross-origin request (curl, server-to-server,
+        // same-origin) — CORS doesn't apply to those in the first place.
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
 app.use(express.json());
-app.use('/uploads', express.static(uploadsDir));
+app.get('/uploads/:filename', (req, res) => {
+    if (!supabaseUrl) return res.status(500).send('Supabase not configured');
+    const { filename } = req.params;
+    const { data } = supabase.storage.from('uploads').getPublicUrl(filename);
+    res.redirect(data.publicUrl);
+});
 
 // ==========================================
 // HELPERS
@@ -94,6 +143,25 @@ const EXPORT_UPDATABLE_FIELDS = [
     'roroRopax', 't6bisDays', 't6bisPrix', 'fraisSupp', 'commentaires', 'status'
 ];
 
+// clientId deliberately excluded — reassigning which Client owns a tracking record is a
+// structural change, not a routine field edit. No frontend caller sends it today either.
+const IMPORT_TRACKING_UPDATABLE_FIELDS = [
+    'reference', 'matricule', 'dateEmbarque', 'exportador', 'destinateur',
+    'location', 'date', 'sortie', 'tracteurImport', 'dateLivraison',
+    'prixAchat', 'prixVente', 'dechargement', 'tmsa', 'parking', 'mafi',
+    'pesage', 'visite', 'intervention', 'fraisBad', 'avisArrive', 'montantFacture', 'status'
+];
+
+const FOURNISSEUR_UPDATABLE_FIELDS = [
+    'name', 'nm_facture', 'dateFacture', 'montant', 'datePaiement', 'status'
+];
+
+const TRACTEUR_UPDATABLE_FIELDS = [
+    'date', 'client', 'matricule', 'facture', 'trajetImport', 'trajetExport',
+    'autres', 'autoroute', 'gasoil', 'deplacement', 'salaire', 'lavage',
+    'huil', 'reparation', 'traite', 'amende', 'customFields', 'prix'
+];
+
 function pickFields(body, allowedFields) {
     const data = {};
     for (const field of allowedFields) {
@@ -105,7 +173,7 @@ function pickFields(body, allowedFields) {
 
 app.get('/api/clients', authMiddleware, async (req, res, next) => {
     try {
-        const clients = await prisma.client.findMany();
+        const clients = await prisma.client.findMany({ take: 500 });
         res.json(clients);
     } catch (error) {
         next(error);
@@ -115,11 +183,12 @@ app.get('/api/clients', authMiddleware, async (req, res, next) => {
 app.post('/api/clients', authMiddleware, async (req, res, next) => {
     try {
         const { reference, name, accessCode, paymentTerms } = req.body;
+        const hashedAccessCode = accessCode ? await bcrypt.hash(accessCode, 10) : accessCode;
         const newClient = await prisma.client.create({
             data: {
                 reference,
                 name,
-                accessCode,
+                accessCode: hashedAccessCode,
                 paymentTerms: paymentTerms ? parseInt(paymentTerms) : 30
             }
         });
@@ -135,11 +204,12 @@ app.put('/api/clients/:id', authMiddleware, async (req, res, next) => {
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
         const { name, accessCode, paymentTerms } = req.body;
+        const hashedAccessCode = accessCode ? await bcrypt.hash(accessCode, 10) : undefined;
         const updated = await prisma.client.update({
             where: { id: parsedId },
             data: {
                 name,
-                accessCode,
+                accessCode: hashedAccessCode,
                 paymentTerms: paymentTerms ? parseInt(paymentTerms) : undefined
             }
         });
@@ -156,7 +226,8 @@ app.put('/api/clients/:id', authMiddleware, async (req, res, next) => {
 app.get('/api/imports', authMiddleware, async (req, res, next) => {
     try {
         const imports = await prisma.importTracking.findMany({
-            include: { client: true }
+            include: { client: true },
+            take: 500
         });
         res.json(imports);
     } catch (error) {
@@ -179,10 +250,14 @@ app.put('/api/imports/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
+    const data = pickFields(req.body, IMPORT_TRACKING_UPDATABLE_FIELDS);
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided to update.' });
+    }
     try {
         const updatedImport = await prisma.importTracking.update({
             where: { id: parsedId },
-            data: req.body
+            data
         });
         res.json(updatedImport);
     } catch (error) {
@@ -197,7 +272,8 @@ app.put('/api/imports/:id', authMiddleware, async (req, res, next) => {
 app.get('/api/logistics-imports', authMiddleware, async (req, res, next) => {
     try {
         const imports = await prisma.logisticsImport.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(imports);
     } catch (error) {
@@ -264,7 +340,7 @@ app.put('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => 
     }
 });
 
-app.delete('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/logistics-imports/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -331,7 +407,8 @@ app.post('/api/logistics-imports/:id/link-export', authMiddleware, async (req, r
 app.get('/api/logistics-exports', authMiddleware, async (req, res, next) => {
     try {
         const exportsList = await prisma.logisticsExport.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(exportsList);
     } catch (error) {
@@ -398,7 +475,7 @@ app.put('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => 
     }
 });
 
-app.delete('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/logistics-exports/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -482,18 +559,33 @@ app.get('/api/logistics-documents/:operationType/:operationId', authMiddleware, 
 
 app.post('/api/logistics-documents/:operationType/:operationId/:documentType', authMiddleware, upload.single('file'), async (req, res, next) => {
     const { operationType, operationId, documentType } = req.params;
-    
+    const parsedOperationId = parseIntParam(operationId);
+    if (parsedOperationId === null) return res.status(400).json({ error: "Invalid id parameter" });
+
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
     try {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = uniqueSuffix + path.extname(req.file.originalname);
+        
+        if (supabase) {
+            const { error: uploadError } = await supabase.storage
+                .from('uploads')
+                .upload(filename, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+            if (uploadError) throw new Error('Supabase upload failed: ' + uploadError.message);
+        }
+
         const newDoc = await prisma.logisticsDocument.create({
             data: {
                 operationType: operationType.toUpperCase(),
                 operationId: parsedOperationId,
                 documentType: documentType.toUpperCase(),
-                fileName: req.file.filename,
+                fileName: filename,
                 originalName: req.file.originalname
             }
         });
@@ -516,9 +608,8 @@ app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res, next
         });
 
         if (doc) {
-            const filePath = path.join(uploadsDir, doc.fileName);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+            if (supabase) {
+                await supabase.storage.from('uploads').remove([doc.fileName]);
             }
             await prisma.logisticsDocument.delete({
                 where: { id: parsedId }
@@ -534,7 +625,7 @@ app.delete('/api/logistics-documents/:id', authMiddleware, async (req, res, next
 // AUTH API
 // ==========================================
 
-app.post('/api/auth/login', async (req, res, next) => {
+app.post('/api/auth/login', loginLimiter, async (req, res, next) => {
     const { username, identifier, password } = req.body;
     const loginId = identifier || username;
 
@@ -589,7 +680,8 @@ app.post('/api/auth/login', async (req, res, next) => {
         });
 
         if (client) {
-            if (client.accessCode !== password) {
+            const accessCodeMatch = client.accessCode && await bcrypt.compare(password, client.accessCode);
+            if (!accessCodeMatch) {
                 return res.status(401).json({ error: 'Invalid reference or access code' });
             }
 
@@ -637,7 +729,8 @@ app.get('/api/auth/me', authMiddleware, async (req, res, next) => {
 app.get('/api/users', authMiddleware, async (req, res, next) => {
     try {
         const users = await prisma.user.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(users);
     } catch (error) {
@@ -662,7 +755,7 @@ app.post('/api/users', authMiddleware, adminMiddleware, async (req, res, next) =
     }
 });
 
-app.put('/api/users/:id', authMiddleware, async (req, res, next) => {
+app.put('/api/users/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -678,7 +771,7 @@ app.put('/api/users/:id', authMiddleware, async (req, res, next) => {
     }
 });
 
-app.delete('/api/users/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/users/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -692,7 +785,7 @@ app.delete('/api/users/:id', authMiddleware, async (req, res, next) => {
     }
 });
 
-app.post('/api/users/:id/generate-recovery', authMiddleware, async (req, res, next) => {
+app.post('/api/users/:id/generate-recovery', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -775,7 +868,18 @@ app.post('/api/chat/:importId', authMiddleware, upload.single('file'), async (re
     let fileName = null;
 
     if (req.file) {
-        fileName = req.file.filename;
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        fileName = uniqueSuffix + path.extname(req.file.originalname);
+
+        if (supabase) {
+            const { error: uploadError } = await supabase.storage
+                .from('uploads')
+                .upload(fileName, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+            if (uploadError) return next(new Error('Supabase upload failed: ' + uploadError.message));
+        }
     }
 
     try {
@@ -834,6 +938,9 @@ app.put('/api/notifications/:id/read', authMiddleware, async (req, res, next) =>
 
 app.delete('/api/notifications/clear', authMiddleware, async (req, res, next) => {
     const { role, userId } = req.query;
+    if (!role && !userId) {
+        return res.status(400).json({ error: 'role or userId query parameter is required.' });
+    }
     try {
         const where = {};
         if (role) where.role = role.toUpperCase();
@@ -872,7 +979,8 @@ app.get('/api/audit-logs', authMiddleware, async (req, res, next) => {
 app.get('/api/fournisseurs', authMiddleware, async (req, res, next) => {
     try {
         const fournisseurs = await prisma.fournisseur.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(fournisseurs);
     } catch (error) {
@@ -896,19 +1004,23 @@ app.put('/api/fournisseurs/:id', authMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
+    const data = pickFields(req.body, FOURNISSEUR_UPDATABLE_FIELDS);
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided to update.' });
+    }
     try {
         const updated = await prisma.fournisseur.update({
             where: { id: parsedId },
-            data: req.body
+            data
         });
-        await logAction(null, 'System', 'UPDATE', 'FOURNISSEUR', id, req.body);
+        await logAction(null, 'System', 'UPDATE', 'FOURNISSEUR', id, data);
         res.json(updated);
     } catch (error) {
         next(error);
     }
 });
 
-app.delete('/api/fournisseurs/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/fournisseurs/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
@@ -930,7 +1042,8 @@ app.delete('/api/fournisseurs/:id', authMiddleware, async (req, res, next) => {
 app.get('/api/suppliers', authMiddleware, async (req, res, next) => {
     try {
         const suppliers = await prisma.supplier.findMany({
-            orderBy: { name: 'asc' }
+            orderBy: { name: 'asc' },
+            take: 500
         });
         res.json(suppliers);
     } catch (error) {
@@ -950,7 +1063,7 @@ app.post('/api/suppliers', authMiddleware, async (req, res, next) => {
     }
 });
 
-app.get('/api/backup', authMiddleware, (req, res) => {
+app.get('/api/backup', authMiddleware, adminMiddleware, (req, res) => {
     const dbPath = path.join(__dirname, 'prisma', 'dev.db');
     if (fs.existsSync(dbPath)) {
         res.download(dbPath, 'kamuchi_backup.db');
@@ -959,135 +1072,12 @@ app.get('/api/backup', authMiddleware, (req, res) => {
     }
 });
 
-// ==========================================
-// SETUP & UTILS 
-// ==========================================
-
-app.post('/api/setup', async (req, res, next) => {
-    try {
-        // 1. Create multiple clients
-        const clientsData = [
-            { reference: 'CLI-A001', name: 'Global Logistics Corp', accessCode: 'logistics123' },
-            { reference: 'CLI-B202', name: 'Mediterranean Trade Co', accessCode: 'trade456' },
-            { reference: 'CLI-C303', name: 'Atlas Express', accessCode: 'atlas789' },
-            { reference: 'CLI-D404', name: 'Nordic Trans-Continental', accessCode: 'nordic321' },
-            { reference: 'CLI-E505', name: 'Sunset Shipping Lines', accessCode: 'sunset654' }
-        ];
-
-        const createdClients = [];
-        for (const clientData of clientsData) {
-            const client = await prisma.client.upsert({
-                where: { reference: clientData.reference },
-                update: {},
-                create: clientData
-            });
-            createdClients.push(client);
-        }
-
-        // 2. Create multiple imports for each client
-        const statuses = ['Not Started', 'Started', 'Completed'];
-        const locations = ['Port Tanger Méditerranée', 'Zone Franche Tanger', 'Port Casablanca', 'Dépôt Safi', 'Terminal Agadir'];
-        const exporters = ['Acme Corp International', 'GMBH Steel', 'Al-Wahid Textiles', 'Oceanic Foods S.A.', 'TechGlobal Components'];
-
-        const importsToCreate = [];
-        
-        // Create 15 mock imports
-        for (let i = 0; i < 15; i++) {
-            const client = createdClients[i % createdClients.length];
-            const status = statuses[i % statuses.length];
-            const refDate = (i % 28) + 1;
-            
-            const importData = {
-                reference: client.reference,
-                clientId: client.id,
-                matricule: `${2000 + i}-W-${50 + i}`,
-                dateEmbarque: `2026-03-${refDate.toString().padStart(2, '0')}`,
-                exportador: exporters[i % exporters.length],
-                destinateur: 'Kamuchi Trans',
-                location: locations[i % locations.length],
-                date: `2026-03-${(refDate + 1).toString().padStart(2, '0')}`,
-                sortie: locations[(i + 1) % locations.length],
-                tracteurImport: `TR-${300 + i}`,
-                dateLivraison: `2026-03-${(refDate + 4).toString().padStart(2, '0')}`,
-                prixAchat: (5000 + i * 100).toString(),
-                prixVente: (6500 + i * 100).toString(),
-                dechargement: 'Warehouse A',
-                pesage: (100 + i).toString(),
-                visite: (50 + i).toString(),
-                fraisBad: (200 + i).toString(),
-                avisArrive: i % 2 === 0 ? 'Yes' : 'No',
-                montantFacture: (5350 + i * 100).toString(),
-                status: status
-            };
-            
-            const newImport = await prisma.importTracking.create({
-                data: importData
-            });
-            
-            // Add initial chat message
-            await prisma.chatMessage.create({
-                data: {
-                    importId: newImport.id,
-                    senderType: 'System',
-                    text: `Tracking session initialized for reference ${client.reference}. Status set to ${status}.`,
-                    type: 'text'
-                }
-            });
-            
-            importsToCreate.push(newImport);
-        }
-
-        // 3. Create mock Logistics Imports and Exports
-        for (let i = 0; i < 5; i++) {
-            const client = createdClients[i % createdClients.length];
-            
-            // Create Logistics Import
-            await prisma.logisticsImport.create({
-                data: {
-                    reference: client.reference,
-                    clientName: client.name || client.reference,
-                    dateEmbarquement: `2026-04-${(10 + i).toString().padStart(2, '0')}`,
-                    matriculeRemorque: `REM-${1000 + i}`,
-                    matriculeTracteur: `TRAC-${500 + i}`,
-                    trajet: 'Tanger-Casablanca',
-                    portOfEntry: i % 2 === 0 ? 'Motril' : 'Algeciras',
-                    status: i % 3 === 0 ? 'Completed' : 'Started'
-                }
-            });
-
-            // Create Logistics Export
-            await prisma.logisticsExport.create({
-                data: {
-                    reference: client.reference,
-                    clientName: client.name || client.reference,
-                    dateChargement: `2026-04-${(15 + i).toString().padStart(2, '0')}`,
-                    matriculeRemorque: `EXP-${2000 + i}`,
-                    chargement: 'Fruits & Vegetables',
-                    dechargement: 'Madrid Logistics Center',
-                    tracteur: `TRAC-EXP-${700 + i}`,
-                    embarquementAvec: 'FRS Ferry',
-                    portOfEntry: i % 2 === 0 ? 'Algeciras' : 'Motril',
-                    status: i % 2 === 0 ? 'Completed' : 'Not Started'
-                }
-            });
-        }
-
-        res.json({ 
-            message: 'Database Seeded Successfully with 5 Clients, 15 Tracking Imports, and 10 Logistics Operations', 
-            clientsCreated: createdClients.length,
-            trackingImportsCreated: importsToCreate.length,
-            logisticsCreated: 10
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
 // --- Invoice Endpoints ---
 app.get('/api/invoices', authMiddleware, async (req, res, next) => {
     try {
         const invoices = await prisma.invoice.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(invoices);
     } catch (error) {
@@ -1172,7 +1162,7 @@ app.put('/api/invoices/:id', authMiddleware, async (req, res, next) => {
     }
 });
 
-app.delete('/api/invoices/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/invoices/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
     const parsedId = parseIntParam(id);
@@ -1191,7 +1181,8 @@ app.delete('/api/invoices/:id', authMiddleware, async (req, res, next) => {
 app.get('/api/tracteurs', authMiddleware, async (req, res, next) => {
     try {
         const tracteurs = await prisma.tracteur.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500
         });
         res.json(tracteurs);
     } catch (error) {
@@ -1221,7 +1212,10 @@ app.put('/api/tracteurs/:id', authMiddleware, async (req, res, next) => {
         const { id } = req.params;
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
-        const data = req.body;
+        const data = pickFields(req.body, TRACTEUR_UPDATABLE_FIELDS);
+        if (Object.keys(data).length === 0) {
+            return res.status(400).json({ error: 'No valid fields provided to update.' });
+        }
         const floatFields = ['autres', 'autoroute', 'gasoil', 'deplacement', 'salaire', 'lavage', 'huil', 'reparation', 'traite', 'amende', 'prix'];
         floatFields.forEach(f => {
             if (data[f] !== undefined && data[f] !== null) {
@@ -1238,7 +1232,7 @@ app.put('/api/tracteurs/:id', authMiddleware, async (req, res, next) => {
     }
 });
 
-app.delete('/api/tracteurs/:id', authMiddleware, async (req, res, next) => {
+app.delete('/api/tracteurs/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
     try {
         const { id } = req.params;
     const parsedId = parseIntParam(id);
@@ -1298,6 +1292,30 @@ app.get('/api/analytics/financials', authMiddleware, async (req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ==========================================
+// GLOBAL ERROR HANDLER
+// ==========================================
+app.use((err, req, res, next) => {
+    console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} —`, err);
+
+    // Multer's own limit errors (e.g. LIMIT_FILE_SIZE) and our fileFilter's rejection
+    // (err.status = 400, set explicitly above) are safe client-input messages to show
+    // verbatim — they don't leak anything, in production or otherwise.
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+    }
+    if (err.status === 400 && err.message) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    const status = err.status || err.statusCode || 500;
+    const message = process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : (err.message || 'Internal server error');
+
+    res.status(status).json({ error: message });
 });
 
 app.listen(5000, '0.0.0.0', () => {
