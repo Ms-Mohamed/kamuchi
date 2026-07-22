@@ -22,7 +22,8 @@ const authMiddleware = (req, res, next) => {
 };
 
 const adminMiddleware = (req, res, next) => {
-    if (req.user && req.user.role === 'ADMIN') {
+    const allowedRoles = ['ADMIN', 'OPS_MANAGER', 'IMPORT_WORKER', 'EXPORT_WORKER'];
+    if (req.user && allowedRoles.includes(req.user.role)) {
         next();
     } else {
         res.status(403).json({ error: 'Access denied. Admin privileges required.' });
