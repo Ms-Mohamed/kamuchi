@@ -13,21 +13,18 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/kamuchi-backend/server.js"
+      "source": "/api/(.*)",
+      "destination": "/kamuchi-backend/server.js"
     },
     {
-      "src": "/uploads/(.*)",
-      "dest": "/kamuchi-backend/server.js"
+      "source": "/uploads/(.*)",
+      "destination": "/kamuchi-backend/server.js"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
