@@ -206,8 +206,8 @@ const CustomInvoiceModal = ({ isOpen, onClose, onSuccess }) => {
                                                 style={{ width: '100%', border: 'none', background: 'transparent', padding: '8px' }}
                                             />
                                             <div className="currency-actions" style={{ display: 'flex' }}>
-                                                <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'MAD' ? 'active' : ''}`} onClick={() => toggleCurrency(index, 'MAD')} title="Switch to MAD" style={{ padding: '4px 8px', border: 'none', background: currencyModes.extras[index] === 'MAD' ? '#e2e8f0' : 'transparent', cursor: 'pointer' }}>🇲🇦</button>
-                                                <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'EUR' ? 'active' : ''}`} onClick={() => toggleCurrency(index, 'EUR')} title="Switch to EUR" style={{ padding: '4px 8px', border: 'none', background: currencyModes.extras[index] === 'EUR' ? '#e2e8f0' : 'transparent', cursor: 'pointer' }}>🇪🇺</button>
+                                                <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'MAD' ? 'active' : ''}`} onClick={() => toggleCurrency(index, 'MAD')} title="Switch to MAD">🇲🇦</button>
+                                                <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'EUR' ? 'active' : ''}`} onClick={() => toggleCurrency(index, 'EUR')} title="Switch to EUR">🇪🇺</button>
                                             </div>
                                         </div>
                                         <button type="button" className="btn-remove-extra" onClick={() => removeExtraRow(index)} style={{ padding: '0 12px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>×</button>
