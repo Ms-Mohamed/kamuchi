@@ -12,7 +12,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
     const role = user?.role || 'WORKER';
     
     const getInitialView = () => {
-        if (role === 'IMPORT_WORKER' || role === 'EXPORT_WORKER') return 'logistics';
+        if (role === 'IMPORT_WORKER' || role === 'EXPORT_WORKER' || role === 'FINANCE_WORKER') return 'logistics';
         if (role === 'OPS_MANAGER') return 'confirmed';
         return 'logistics';
     };
@@ -20,10 +20,10 @@ const WorkerDashboard = ({ user, onLogout }) => {
     const [activeView, setActiveView] = useState(getInitialView());
 
     const navItems = [
-        { id: 'logistics', label: 'Logistics', roles: ['IMPORT_WORKER', 'EXPORT_WORKER', 'ADMIN', 'WORKER'] },
+        { id: 'logistics', label: 'Logistics', roles: ['IMPORT_WORKER', 'EXPORT_WORKER', 'ADMIN', 'WORKER', 'FINANCE_WORKER'] },
         { id: 'confirmed', label: 'Confirmed Operations', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
         { id: 'payments', label: 'Paiements', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
-        { id: 'invoices', label: 'Factures', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'invoices', label: 'Factures', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER', 'FINANCE_WORKER'] },
         { id: 'clients', label: 'Clients & Groups', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER', 'IMPORT_WORKER', 'EXPORT_WORKER'] },
         { id: 'tracteur', label: 'Tracteur', roles: ['OPS_MANAGER', 'ADMIN'] },
     ];

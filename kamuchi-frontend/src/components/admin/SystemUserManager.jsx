@@ -40,8 +40,7 @@ const SystemUserManager = () => {
         }
     };
 
-    const handleUpdateRole = async (userId, currentRole) => {
-        const nextRole = currentRole === 'ADMIN' ? 'WORKER' : 'ADMIN';
+    const handleUpdateRole = async (userId, nextRole) => {
         const confirmed = await showConfirm(
             'Change Permission', 
             `Are you sure you want to change this user's role to ${nextRole}?`,
@@ -100,6 +99,10 @@ const SystemUserManager = () => {
                         <label style={{marginBottom: '0.5rem', display: 'block', fontWeight: 600, fontSize: '0.85rem'}}>Permission Level</label>
                         <select value={newRole} onChange={(e) => setNewRole(e.target.value)} style={{width: '100%'}}>
                             <option value="WORKER">Worker Node</option>
+                            <option value="IMPORT_WORKER">Import Worker</option>
+                            <option value="EXPORT_WORKER">Export Worker</option>
+                            <option value="FINANCE_WORKER">Finance Worker</option>
+                            <option value="OPS_MANAGER">Operations Manager</option>
                             <option value="ADMIN">System Administrator</option>
                         </select>
                     </div>
@@ -159,13 +162,19 @@ const SystemUserManager = () => {
                                         >
                                             🔒 Get Code
                                         </button>
-                                        <button 
-                                            className="btn-secondary" 
-                                            style={{marginRight: '0.75rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.5rem 1rem'}}
-                                            onClick={() => handleUpdateRole(u.id, u.role)}
+                                        <select 
+                                            className="btn-secondary"
+                                            style={{marginRight: '0.75rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.5rem', background: 'transparent'}}
+                                            value={u.role}
+                                            onChange={(e) => handleUpdateRole(u.id, e.target.value)}
                                         >
-                                            Switch Role
-                                        </button>
+                                            <option value="WORKER">Worker Node</option>
+                                            <option value="IMPORT_WORKER">Import Worker</option>
+                                            <option value="EXPORT_WORKER">Export Worker</option>
+                                            <option value="FINANCE_WORKER">Finance Worker</option>
+                                            <option value="OPS_MANAGER">Operations Manager</option>
+                                            <option value="ADMIN">System Administrator</option>
+                                        </select>
                                         <button 
                                             className="btn-secondary" 
                                             style={{color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, padding: '0.5rem 1rem'}}

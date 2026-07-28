@@ -21,6 +21,8 @@ const PORT_COLORS = {
 
 const LogisticsImportTable = ({ isConfirmedView, user }) => {
     const isOpsManager = user?.role?.toUpperCase() === 'OPS_MANAGER' || user?.role?.toUpperCase() === 'ADMIN';
+    const isFinanceWorker = user?.role?.toUpperCase() === 'FINANCE_WORKER';
+    const canEditPrices = isOpsManager || isFinanceWorker;
     const [data, setData] = useState([]);
     const [clients, setClients] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -730,7 +732,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                             </div>
                             <div className="logistics-form-group">
                                 <label>Date d'embarquement</label>
-                                <input type="date" name="dateEmbarquement" value={formData.dateEmbarquement} onChange={handleFormChange} />
+                                <input type="date" name="dateEmbarquement" value={formData.dateEmbarquement} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                              <div className="logistics-form-group">
                                 <label>Client Reference</label>
@@ -740,37 +742,38 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                                     placeholder="Enter client's internal reference" 
                                     value={formData.clientReference} 
                                     onChange={handleFormChange} 
+                                    disabled={isFinanceWorker}
                                 />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Matricule Remorque</label>
-                                <input type="text" name="matriculeRemorque" value={formData.matriculeRemorque} onChange={handleFormChange} />
+                                <input type="text" name="matriculeRemorque" value={formData.matriculeRemorque} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Tractionnaire</label>
-                                <input type="text" name="matriculeTracteur" value={formData.matriculeTracteur} onChange={handleFormChange} />
+                                <input type="text" name="matriculeTracteur" value={formData.matriculeTracteur} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Date Sortie Port</label>
-                                <input type="date" name="dateSortiePort" value={formData.dateSortiePort} onChange={handleFormChange} />
+                                <input type="date" name="dateSortiePort" value={formData.dateSortiePort} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Date Livraison (Déchargement)</label>
-                                <input type="date" name="dateLivraison" value={formData.dateLivraison} onChange={handleFormChange} />
+                                <input type="date" name="dateLivraison" value={formData.dateLivraison} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Trajet</label>
-                                <input type="text" name="trajet" placeholder="e.g. ALGECIRAS – Tanger MED - TFZ" value={formData.trajet} onChange={handleFormChange} />
+                                <input type="text" name="trajet" placeholder="e.g. ALGECIRAS – Tanger MED - TFZ" value={formData.trajet} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Port (Route)</label>
-                                <select name="portOfEntry" value={formData.portOfEntry} onChange={handleFormChange}>
+                                <select name="portOfEntry" value={formData.portOfEntry} onChange={handleFormChange} disabled={isFinanceWorker}>
                                     <option value="">-- Select Port --</option>
                                     <option value="Motril">Motril</option>
                                     <option value="Algeciras">Algeciras</option>
                                 </select>
                             </div>
-                            {isOpsManager && (
+                            {canEditPrices && (
                                 <div className="logistics-form-group">
                                     <label>Montant (MAD)</label>
                                     <div className="currency-input-wrapper">
@@ -784,7 +787,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                             )}
                             <div className="logistics-form-group">
                                 <label>Visite</label>
-                                <input type="text" name="visite" value={formData.visite} onChange={handleFormChange} />
+                                <input type="text" name="visite" value={formData.visite} onChange={handleFormChange} disabled={isFinanceWorker} />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Red Code</label>
@@ -794,13 +797,14 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                                         value={formData.redCode} 
                                         onChange={handleFormChange}
                                         style={{ flex: 2 }}
+                                        disabled={isFinanceWorker}
                                     >
                                         <option value="">-- No Red Code --</option>
                                         <option value="Pesage">Pesage</option>
                                         <option value="Imobilisation">Imobilisation</option>
                                         <option value="Scanner">Scanner</option>
                                     </select>
-                                    {isOpsManager && formData.redCode && (
+                                    {canEditPrices && formData.redCode && (
                                         <div className="currency-input-wrapper" style={{ flex: 1.5 }}>
                                             <input 
                                                 type="number" 
@@ -821,7 +825,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                             <div className="logistics-form-group full-width">
                                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     Extras / Frais supplémentaires
-                                    <button type="button" className="btn-add-extra" onClick={addExtraRow}>+ Add Fee</button>
+                                    {canEditPrices && <button type="button" className="btn-add-extra" onClick={addExtraRow}>+ Add Fee</button>}
                                 </label>
                                 <div className="extras-list">
                                     {formData.extras.map((extra, index) => (
@@ -832,6 +836,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                                                 value={extra.label} 
                                                 onChange={(e) => handleExtraChange(index, 'label', e.target.value)}
                                                 style={{ flex: 2 }}
+                                                disabled={isFinanceWorker}
                                             />
                                             <input 
                                                 type="text" 
@@ -839,6 +844,7 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                                                 value={extra.ref} 
                                                 onChange={(e) => handleExtraChange(index, 'ref', e.target.value)}
                                                 style={{ flex: 1.5 }}
+                                                disabled={isFinanceWorker}
                                             />
                                             <div className="currency-input-wrapper" style={{ flex: 2 }}>
                                                 <input 
@@ -847,13 +853,14 @@ const LogisticsImportTable = ({ isConfirmedView, user }) => {
                                                     value={extra.value} 
                                                     onChange={(e) => handleExtraChange(index, 'value', e.target.value)}
                                                     style={{ width: '100%' }}
+                                                    disabled={!canEditPrices}
                                                 />
                                                 <div className="currency-actions">
                                                     <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'MAD' ? 'active' : ''}`} onClick={() => toggleCurrency(null, 'MAD', index)} title="Switch to MAD">🇲🇦</button>
                                                     <button type="button" className={`currency-btn ${currencyModes.extras[index] === 'EUR' ? 'active' : ''}`} onClick={() => toggleCurrency(null, 'EUR', index)} title="Switch to EUR">🇪🇺</button>
                                                 </div>
                                             </div>
-                                            <button type="button" className="btn-remove-extra" onClick={() => removeExtraRow(index)}>×</button>
+                                            {canEditPrices && <button type="button" className="btn-remove-extra" onClick={() => removeExtraRow(index)}>×</button>}
                                         </div>
                                     ))}
                                     {formData.extras.length === 0 && (

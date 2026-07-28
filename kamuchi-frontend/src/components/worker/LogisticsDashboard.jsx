@@ -15,8 +15,8 @@ const LogisticsDashboard = ({ isConfirmedView, user }) => {
     const [activeTab, setActiveTab] = useState(getInitialTab());
 
     // Filter available tabs based on role
-    const canSeeImport = role === 'ADMIN' || role === 'WORKER' || role === 'IMPORT_WORKER' || role === 'OPS_MANAGER';
-    const canSeeExport = role === 'ADMIN' || role === 'WORKER' || role === 'EXPORT_WORKER' || role === 'OPS_MANAGER';
+    const canSeeImport = role === 'ADMIN' || role === 'WORKER' || role === 'IMPORT_WORKER' || role === 'OPS_MANAGER' || role === 'FINANCE_WORKER';
+    const canSeeExport = role === 'ADMIN' || role === 'WORKER' || role === 'EXPORT_WORKER' || role === 'OPS_MANAGER' || role === 'FINANCE_WORKER';
 
     return (
         <div className="workspace-full">

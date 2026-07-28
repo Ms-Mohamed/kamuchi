@@ -22,7 +22,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 const adminMiddleware = (req, res, next) => {
-    const allowedRoles = ['ADMIN', 'OPS_MANAGER', 'IMPORT_WORKER', 'EXPORT_WORKER'];
+    const allowedRoles = ['ADMIN', 'OPS_MANAGER', 'IMPORT_WORKER', 'EXPORT_WORKER', 'FINANCE_WORKER'];
     if (req.user && allowedRoles.includes(req.user.role)) {
         next();
     } else {
