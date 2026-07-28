@@ -24,7 +24,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
         { id: 'confirmed', label: 'Confirmed Operations', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
         { id: 'payments', label: 'Paiements', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
         { id: 'invoices', label: 'Factures', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
-        { id: 'clients', label: 'Clients & Groups', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER'] },
+        { id: 'clients', label: 'Clients & Groups', roles: ['OPS_MANAGER', 'ADMIN', 'WORKER', 'IMPORT_WORKER', 'EXPORT_WORKER'] },
         { id: 'tracteur', label: 'Tracteur', roles: ['OPS_MANAGER', 'ADMIN'] },
     ];
     
