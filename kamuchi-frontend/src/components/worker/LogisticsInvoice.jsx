@@ -15,6 +15,11 @@ const LogisticsInvoice = ({ data, onClose }) => {
         const opId = data.operationId || data.id;
         if (!opId) return;
 
+        if (opType === 'CUSTOM') {
+            setDocuments([]);
+            return;
+        }
+
         const fetchDocs = async () => {
             setLoadingDocs(true);
             try {
@@ -50,33 +55,35 @@ const LogisticsInvoice = ({ data, onClose }) => {
     const lineItems = [];
     let grandTotalEUR = 0;
 
-    // 1. Base Transport
-    const basePriceEUR = toEUR(data.montant);
-    lineItems.push({
-        label: `Transport Internationale : ${data.chargement || data.trajet || '...'} - ${data.dechargement || '...'}`,
-        price: basePriceEUR
-    });
-    grandTotalEUR += basePriceEUR;
+    // 1. Base Transport & Specifics (Only for Logistics Operations)
+    if (data.operationType !== 'CUSTOM') {
+        const basePriceEUR = toEUR(data.montant);
+        lineItems.push({
+            label: `Transport Internationale : ${data.chargement || data.trajet || '...'} - ${data.dechargement || '...'}`,
+            price: basePriceEUR
+        });
+        grandTotalEUR += basePriceEUR;
 
-    // 2. Red Code
-    if (data.redCode && data.redCodePrice) {
-        const rcPriceEUR = toEUR(data.redCodePrice);
-        lineItems.push({ label: `Service : ${data.redCode}`, price: rcPriceEUR });
-        grandTotalEUR += rcPriceEUR;
-    }
+        // 2. Red Code
+        if (data.redCode && data.redCodePrice) {
+            const rcPriceEUR = toEUR(data.redCodePrice);
+            lineItems.push({ label: `Service : ${data.redCode}`, price: rcPriceEUR });
+            grandTotalEUR += rcPriceEUR;
+        }
 
-    // 3. Visite
-    if (data.visite) {
-        const visitePriceEUR = toEUR(40);
-        lineItems.push({ label: `Visite : ${data.visite}`, price: visitePriceEUR });
-        grandTotalEUR += visitePriceEUR;
-    }
+        // 3. Visite
+        if (data.visite) {
+            const visitePriceEUR = toEUR(40);
+            lineItems.push({ label: `Visite : ${data.visite}`, price: visitePriceEUR });
+            grandTotalEUR += visitePriceEUR;
+        }
 
-    // T6BIS
-    if (data.t6bisPrix) {
-        const t6bisPriceEUR = parseFloat(data.t6bisPrix) || 0;
-        lineItems.push({ label: `T6BIS (${data.t6bisDays || 0} days)`, price: t6bisPriceEUR });
-        grandTotalEUR += t6bisPriceEUR;
+        // T6BIS
+        if (data.t6bisPrix) {
+            const t6bisPriceEUR = parseFloat(data.t6bisPrix) || 0;
+            lineItems.push({ label: `T6BIS (${data.t6bisDays || 0} days)`, price: t6bisPriceEUR });
+            grandTotalEUR += t6bisPriceEUR;
+        }
     }
 
     // 4. Extras / Frais Supp

@@ -1,19 +1,21 @@
-FROM node:20-slim
+FROM node:22-slim
 
 # Install openssl for Prisma
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy package files first for layer caching
+# Copy package files and prisma schema first for layer caching
 COPY package*.json ./
+COPY prisma ./prisma/
+
+# Provide dummy variables so Prisma doesn't crash during build's npm install
+ENV DATABASE_URL="postgresql://dummy"
+ENV DIRECT_URL="postgresql://dummy"
 
 # Install all dependencies (including devDeps for prisma CLI)
+# The postinstall script of @prisma/client will automatically run `prisma generate`
 RUN npm install
-
-# Copy Prisma schema and generate client
-COPY prisma ./prisma/
-RUN npx prisma generate
 
 # Copy the rest of the application
 COPY . .

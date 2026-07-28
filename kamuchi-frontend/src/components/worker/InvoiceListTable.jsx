@@ -4,6 +4,7 @@ import './TrackingTable.css';
 import LogisticsInvoice from './LogisticsInvoice';
 import { apiFetch } from '../../api';
 import { useModal } from '../common/ModalContext';
+import CustomInvoiceModal from './CustomInvoiceModal';
 
 const STATUS_COLORS = {
     'Unpaid': '#ef4444', // red
@@ -14,6 +15,7 @@ const InvoiceListTable = () => {
     const [data, setData] = useState([]);
     const [selectedInvoiceData, setSelectedInvoiceData] = useState(null);
     const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+    const [isCustomInvoiceModalOpen, setIsCustomInvoiceModalOpen] = useState(false);
     const scrollWrapperRef = useRef(null);
     const isDragging = useRef(false);
     const startX = useRef(0);
@@ -59,6 +61,16 @@ const InvoiceListTable = () => {
 
     const handleViewInvoice = async (invoice) => {
         try {
+            if (invoice.operationType === 'CUSTOM') {
+                setSelectedInvoiceData({
+                    ...invoice,
+                    extras: invoice.operationId,
+                    savedTotal: invoice.montant
+                });
+                setIsInvoiceOpen(true);
+                return;
+            }
+
             const endpoint = invoice.operationType === 'IMPORT' ? `/logistics-imports/${invoice.operationId}` : `/logistics-exports/${invoice.operationId}`;
             const response = await apiFetch(endpoint);
             if (response.ok) {
@@ -145,6 +157,7 @@ const InvoiceListTable = () => {
             <div className="table-header">
                 <h2>Liste des Factures Clients</h2>
                 <div className="header-actions">
+                    <button className="btn-primary" onClick={() => setIsCustomInvoiceModalOpen(true)}>+ Nouvelle Facture</button>
                     <button className="btn-secondary" onClick={handleExportExcel}>📥 Export Excel</button>
                 </div>
             </div>
@@ -236,6 +249,12 @@ const InvoiceListTable = () => {
                     onClose={() => setIsInvoiceOpen(false)} 
                 />
             )}
+
+            <CustomInvoiceModal 
+                isOpen={isCustomInvoiceModalOpen}
+                onClose={() => setIsCustomInvoiceModalOpen(false)}
+                onSuccess={fetchInvoices}
+            />
         </div>
     );
 };

@@ -1095,19 +1095,21 @@ app.post('/api/invoices', authMiddleware, async (req, res, next) => {
         if (existing) return res.json(existing);
 
         // Guard: operation must exist and be Completed before an invoice can be created
-        const parsedOpId = parseIntParam(operationId != null ? operationId.toString() : '');
-        if (parsedOpId === null) return res.status(400).json({ error: 'Invalid operationId.' });
-        let operation = null;
-        if (operationType === 'IMPORT') {
-            operation = await prisma.logisticsImport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
-        } else if (operationType === 'EXPORT') {
-            operation = await prisma.logisticsExport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
-        } else {
-            return res.status(400).json({ error: 'operationType must be IMPORT or EXPORT.' });
-        }
-        if (!operation) return res.status(404).json({ error: 'Operation not found.' });
-        if (operation.status !== 'Completed') {
-            return res.status(422).json({ error: 'Cannot create an invoice for an operation that is not yet completed.' });
+        if (operationType !== 'CUSTOM') {
+            const parsedOpId = parseIntParam(operationId != null ? operationId.toString() : '');
+            if (parsedOpId === null) return res.status(400).json({ error: 'Invalid operationId.' });
+            let operation = null;
+            if (operationType === 'IMPORT') {
+                operation = await prisma.logisticsImport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
+            } else if (operationType === 'EXPORT') {
+                operation = await prisma.logisticsExport.findUnique({ where: { id: parsedOpId }, select: { status: true } });
+            } else {
+                return res.status(400).json({ error: 'operationType must be IMPORT, EXPORT, or CUSTOM.' });
+            }
+            if (!operation) return res.status(404).json({ error: 'Operation not found.' });
+            if (operation.status !== 'Completed') {
+                return res.status(422).json({ error: 'Cannot create an invoice for an operation that is not yet completed.' });
+            }
         }
 
         // Fetch client to get payment terms
