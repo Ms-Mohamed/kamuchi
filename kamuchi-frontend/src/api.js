@@ -69,3 +69,41 @@ export const apiUpload = async (endpoint, formData) => {
 
     return response;
 };
+
+export const apiUploadWithProgress = (endpoint, formData, onProgress) => {
+    return new Promise((resolve, reject) => {
+        const token = localStorage.getItem('kamuchiToken');
+        const xhr = new XMLHttpRequest();
+        
+        xhr.open('POST', `${API_BASE_URL}${endpoint}`, true);
+        
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable && onProgress) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                onProgress(percentComplete);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 401) {
+                localStorage.removeItem('kamuchiToken');
+                localStorage.removeItem('kamuchiUser');
+                window.location.reload();
+            }
+            
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve({ ok: true, status: xhr.status, response: xhr.responseText });
+            } else {
+                resolve({ ok: false, status: xhr.status, response: xhr.responseText });
+            }
+        };
+
+        xhr.onerror = () => reject(new Error('Network Error'));
+
+        xhr.send(formData);
+    });
+};

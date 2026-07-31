@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FileText, Image as ImageIcon, Trash2, X, Download, Eye, UploadCloud } from 'lucide-react';
 import './LogisticsFilesModal.css';
-import { apiFetch, UPLOAD_BASE_URL } from '../../api';
+import { apiFetch, apiUploadWithProgress, UPLOAD_BASE_URL } from '../../api';
 import { useModal } from '../common/ModalContext';
 
 const DOCUMENT_TYPES = ['CMR', 'TO', 'BL', 'DECLARATION', 'TRYPTIQUE'];
@@ -10,6 +10,7 @@ const DOCUMENT_TYPES = ['CMR', 'TO', 'BL', 'DECLARATION', 'TRYPTIQUE'];
 const LogisticsFilesModal = ({ isOpen, onClose, rowData, operationType }) => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({});
     const [previewFile, setPreviewFile] = useState(null);
     const { showAlert, showConfirm } = useModal();
 
@@ -39,15 +40,16 @@ const LogisticsFilesModal = ({ isOpen, onClose, rowData, operationType }) => {
     const handleUpload = async (file, docType) => {
         if (!file) return;
         
-        setLoading(true);
+        setUploadProgress(prev => ({ ...prev, [docType]: 0 }));
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-            const res = await apiFetch(`/logistics-documents/${operationType}/${rowData.id}/${docType}`, {
-                method: 'POST',
-                body: formData
-            });
+            const res = await apiUploadWithProgress(
+                `/logistics-documents/${operationType}/${rowData.id}/${docType}`,
+                formData,
+                (percent) => setUploadProgress(prev => ({ ...prev, [docType]: percent }))
+            );
 
             if (res.ok) {
                 await fetchDocuments();
@@ -58,7 +60,11 @@ const LogisticsFilesModal = ({ isOpen, onClose, rowData, operationType }) => {
             console.error("Upload error:", error);
             showAlert("Error", "An error occurred during upload.", "error");
         } finally {
-            setLoading(false);
+            setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[docType];
+                return newProgress;
+            });
         }
     };
 
@@ -96,10 +102,22 @@ const LogisticsFilesModal = ({ isOpen, onClose, rowData, operationType }) => {
         });
 
         return (
-            <div {...getRootProps()} className={`file-dropzone ${isDragActive ? 'active' : ''}`}>
-                <input {...getInputProps()} />
-                <UploadCloud size={24} />
-                <p>{isDragActive ? 'Drop it here!' : 'Drag & drop or click'}</p>
+            <div className="dropzone-wrapper">
+                <div {...getRootProps()} className={`file-dropzone ${isDragActive ? 'active' : ''} ${uploadProgress[type] !== undefined ? 'uploading' : ''}`}>
+                    <input {...getInputProps()} disabled={uploadProgress[type] !== undefined} />
+                    <UploadCloud size={24} />
+                    <p>
+                        {uploadProgress[type] !== undefined 
+                            ? `Uploading... ${uploadProgress[type]}%`
+                            : (isDragActive ? 'Drop it here!' : 'Drag & drop or click')
+                        }
+                    </p>
+                </div>
+                {uploadProgress[type] !== undefined && (
+                    <div className="progress-bar-container">
+                        <div className="progress-bar" style={{ width: `${uploadProgress[type]}%` }}></div>
+                    </div>
+                )}
             </div>
         );
     };

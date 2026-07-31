@@ -218,6 +218,20 @@ app.put('/api/clients/:id', authMiddleware, async (req, res, next) => {
     }
 });
 
+app.delete('/api/clients/:id', authMiddleware, async (req, res, next) => {
+    const { id } = req.params;
+    const parsedId = parseIntParam(id);
+    if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
+    try {
+        const deleted = await prisma.client.delete({
+            where: { id: parsedId }
+        });
+        res.json(deleted);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ==========================================
 // IMPORTS API
 // ==========================================

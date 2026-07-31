@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './ClientManager.css';
 import { useModal } from '../common/ModalContext';
 import { apiFetch, apiFetchJson } from '../../api';
+import { Trash2 } from 'lucide-react';
 
 const ClientManager = ({ user }) => {
     const isOpsManager = user?.role === 'OPS_MANAGER' || user?.role === 'ADMIN';
     const [clients, setClients] = useState([]);
-    const { showAlert } = useModal();
+    const { showAlert, showConfirm } = useModal();
 
     // Helper function to generate a random client reference
     const generateClientRef = () => {
@@ -41,6 +42,28 @@ const ClientManager = ({ user }) => {
             }
         } catch (err) {
             console.error('Failed to create client', err);
+        }
+    };
+
+    const handleDeleteClient = async (id) => {
+        const confirmed = await showConfirm(
+            'Delete Client',
+            'Are you sure you want to delete this client? This cannot be undone.',
+            { confirmText: 'Delete', cancelText: 'Cancel' }
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const res = await apiFetch(`/clients/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setClients(clients.filter(c => c.id !== id));
+                showAlert('Success', 'Client deleted successfully.', 'success');
+            } else {
+                showAlert('Error', 'Failed to delete client.', 'error');
+            }
+        } catch (err) {
+            console.error('Failed to delete client', err);
         }
     };
 
@@ -86,6 +109,7 @@ const ClientManager = ({ user }) => {
                             <th>Name</th>
                             <th>Reference</th>
                             <th>Payment Terms</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -94,6 +118,16 @@ const ClientManager = ({ user }) => {
                                 <td>{client.name}</td>
                                 <td><code>{client.reference}</code></td>
                                 <td>{client.paymentTerms} Days</td>
+                                <td style={{ width: '80px', textAlign: 'center' }}>
+                                    <button 
+                                        className="btn-icon delete" 
+                                        onClick={() => handleDeleteClient(client.id)}
+                                        title="Delete Client"
+                                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </td>
                             </tr>
                         )) : (
                             <tr><td colSpan="1">No clients found.</td></tr>
