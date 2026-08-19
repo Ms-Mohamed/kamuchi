@@ -444,13 +444,13 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
 
     const handleExportExcel = () => {
         const exportData = filteredData.map(row => ({
-            'Reference': row.reference,
+            'Ref': clients.find(c => c.name === row.clientName)?.companyReference || '',
+            'Kamuchi Ref': row.reference,
             'Client': row.clientName,
             'Date Chargement': row.dateChargement,
             'Remorque': row.matriculeRemorque,
             'Chargement': row.chargement,
             'Dechargement': row.dechargement,
-            'Client Ref': row.clientReference,
             'Tractionnaire': row.tracteur,
             'Embarquement': row.embarquementAvec,
             'RORO/ROPAX': row.roroRopax,
@@ -499,7 +499,7 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                         <tr>
                             <th style={{ width: '100px' }}>Actions</th>
                             <th>Ref</th>
-                            <th>Client Ref</th>
+                            <th>Kamuchi Ref</th>
                             <th>Client</th>
                             <th>Date Chargement</th>
                             <th>Matricule Remorque</th>
@@ -558,6 +558,7 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                                         )}
                                     </div>
                                 </td>
+                                <td>{clients.find(c => c.name === row.clientName)?.companyReference || ''}</td>
                                  <td>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <strong>{row.reference}</strong>
@@ -574,7 +575,6 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                                         )}
                                     </div>
                                 </td>
-                                <td>{row.clientReference || '-'}</td>
                                 <td>{row.clientName || '-'}</td>
                                 <td>{row.dateChargement || '-'}</td>
                                 <td>{row.matriculeRemorque || '-'}</td>
@@ -711,17 +711,6 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                             <div className="logistics-form-group">
-                                <label>Client Reference</label>
-                                <input 
-                                    type="text" 
-                                    name="clientReference" 
-                                    placeholder="Enter client's internal reference" 
-                                    value={formData.clientReference} 
-                                    onChange={handleFormChange} 
-                                    disabled={isFinanceWorker}
-                                />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Date Chargement</label>

@@ -10,11 +10,13 @@ datasource db {
 
 model Client {
   id           Int             @id @default(autoincrement())
-  reference    String          @unique
-  accessCode   String?          
+  reference        String          @unique
+  companyReference String?
+  accessCode       String?          
   name         String?
-  paymentTerms Int             @default(30)
-  imports      ImportTracking[]
+  paymentTerms   Int             @default(30)
+  operationCounter Int           @default(0)
+  imports        ImportTracking[]
 }
 
 model ImportTracking {

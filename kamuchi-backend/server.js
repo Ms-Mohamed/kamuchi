@@ -181,11 +181,12 @@ app.get('/api/clients', authMiddleware, async (req, res, next) => {
 
 app.post('/api/clients', authMiddleware, async (req, res, next) => {
     try {
-        const { reference, name, accessCode, paymentTerms } = req.body;
+        const { reference, companyReference, name, accessCode, paymentTerms } = req.body;
         const hashedAccessCode = accessCode ? await bcrypt.hash(accessCode, 10) : accessCode;
         const newClient = await prisma.client.create({
             data: {
                 reference,
+                companyReference,
                 name,
                 accessCode: hashedAccessCode,
                 paymentTerms: paymentTerms ? parseInt(paymentTerms) : 30
@@ -202,15 +203,23 @@ app.put('/api/clients/:id', authMiddleware, async (req, res, next) => {
     const parsedId = parseIntParam(id);
     if (parsedId === null) return res.status(400).json({ error: "Invalid id parameter" });
     try {
-        const { name, accessCode, paymentTerms } = req.body;
+        const { name, accessCode, paymentTerms, reference, companyReference, operationCounter } = req.body;
         const hashedAccessCode = accessCode ? await bcrypt.hash(accessCode, 10) : undefined;
+        
+        const updateData = {
+            name,
+            accessCode: hashedAccessCode,
+            paymentTerms: paymentTerms ? parseInt(paymentTerms) : undefined,
+        };
+        
+        if (companyReference !== undefined) updateData.companyReference = companyReference;
+        
+        if (reference) updateData.reference = reference;
+        if (operationCounter !== undefined) updateData.operationCounter = parseInt(operationCounter) || 0;
+
         const updated = await prisma.client.update({
             where: { id: parsedId },
-            data: {
-                name,
-                accessCode: hashedAccessCode,
-                paymentTerms: paymentTerms ? parseInt(paymentTerms) : undefined
-            }
+            data: updateData
         });
         res.json(updated);
     } catch (error) {
@@ -311,6 +320,15 @@ app.get('/api/logistics-imports/:id', authMiddleware, async (req, res, next) => 
 
 app.post('/api/logistics-imports', authMiddleware, async (req, res, next) => {
     try {
+        const clientRef = req.body.reference;
+        if (clientRef) {
+            const client = await prisma.client.update({
+                where: { reference: clientRef },
+                data: { operationCounter: { increment: 1 } }
+            });
+            req.body.reference = `${client.reference}${String(client.operationCounter).padStart(5, '0')}`;
+        }
+        
         const newImport = await prisma.logisticsImport.create({
             data: req.body
         });
@@ -446,6 +464,15 @@ app.get('/api/logistics-exports/:id', authMiddleware, async (req, res, next) => 
 
 app.post('/api/logistics-exports', authMiddleware, async (req, res, next) => {
     try {
+        const clientRef = req.body.reference;
+        if (clientRef) {
+            const client = await prisma.client.update({
+                where: { reference: clientRef },
+                data: { operationCounter: { increment: 1 } }
+            });
+            req.body.reference = `${client.reference}${String(client.operationCounter).padStart(5, '0')}`;
+        }
+
         const newExport = await prisma.logisticsExport.create({
             data: req.body
         });
