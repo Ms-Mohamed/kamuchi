@@ -444,7 +444,7 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
 
     const handleExportExcel = () => {
         const exportData = filteredData.map(row => ({
-            'Ref': clients.find(c => c.name === row.clientName)?.companyReference || '',
+            'Ref': row.clientReference,
             'Kamuchi Ref': row.reference,
             'Client': row.clientName,
             'Date Chargement': row.dateChargement,
@@ -558,7 +558,7 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                                         )}
                                     </div>
                                 </td>
-                                <td>{clients.find(c => c.name === row.clientName)?.companyReference || ''}</td>
+                                <td>{row.clientReference || '-'}</td>
                                  <td>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <strong>{row.reference}</strong>
@@ -715,6 +715,17 @@ const LogisticsExportTable = ({ isConfirmedView, user }) => {
                             <div className="logistics-form-group">
                                 <label>Date Chargement</label>
                                 <input type="date" name="dateChargement" value={formData.dateChargement} onChange={handleFormChange} disabled={isFinanceWorker} />
+                            </div>
+                            <div className="logistics-form-group">
+                                <label>Client Reference</label>
+                                <input 
+                                    type="text" 
+                                    name="clientReference" 
+                                    placeholder="Enter client's internal reference" 
+                                    value={formData.clientReference} 
+                                    onChange={handleFormChange} 
+                                    disabled={isFinanceWorker}
+                                />
                             </div>
                             <div className="logistics-form-group">
                                 <label>Matricule Remorque</label>
