@@ -69,6 +69,7 @@ const ClientManager = ({ user }) => {
             paymentTerms: client.paymentTerms || 30,
             operationCounter: client.operationCounter || 0
         });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleDeleteClient = async (id) => {

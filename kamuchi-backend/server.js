@@ -326,7 +326,29 @@ app.post('/api/logistics-imports', authMiddleware, async (req, res, next) => {
                 where: { reference: clientRef },
                 data: { operationCounter: { increment: 1 } }
             });
-            req.body.reference = `${client.reference}${String(client.operationCounter).padStart(5, '0')}`;
+            const counterStr = String(client.operationCounter).padStart(5, '0');
+            req.body.reference = `${client.reference}${counterStr}`;
+            
+            if (!req.body.clientReference || req.body.clientReference.trim() === '') {
+                const recentOps = await prisma.logisticsImport.findMany({
+                    where: { reference: { startsWith: clientRef } },
+                    orderBy: { id: 'desc' },
+                    take: 10
+                });
+                
+                let nextRef = `REF-${counterStr}`;
+                const validOp = recentOps.find(op => op.clientReference && op.clientReference.trim() !== '' && op.clientReference.trim() !== '-');
+                if (validOp) {
+                    const match = validOp.clientReference.trim().match(/^(.*?)(\d+)$/);
+                    if (match) {
+                        const prefix = match[1];
+                        const numStr = match[2];
+                        const nextNum = parseInt(numStr, 10) + 1;
+                        nextRef = `${prefix}${String(nextNum).padStart(numStr.length, '0')}`;
+                    }
+                }
+                req.body.clientReference = nextRef;
+            }
         }
         
         const newImport = await prisma.logisticsImport.create({
@@ -470,7 +492,29 @@ app.post('/api/logistics-exports', authMiddleware, async (req, res, next) => {
                 where: { reference: clientRef },
                 data: { operationCounter: { increment: 1 } }
             });
-            req.body.reference = `${client.reference}${String(client.operationCounter).padStart(5, '0')}`;
+            const counterStr = String(client.operationCounter).padStart(5, '0');
+            req.body.reference = `${client.reference}${counterStr}`;
+            
+            if (!req.body.clientReference || req.body.clientReference.trim() === '') {
+                const recentOps = await prisma.logisticsExport.findMany({
+                    where: { reference: { startsWith: clientRef } },
+                    orderBy: { id: 'desc' },
+                    take: 10
+                });
+                
+                let nextRef = `REF-${counterStr}`;
+                const validOp = recentOps.find(op => op.clientReference && op.clientReference.trim() !== '' && op.clientReference.trim() !== '-');
+                if (validOp) {
+                    const match = validOp.clientReference.trim().match(/^(.*?)(\d+)$/);
+                    if (match) {
+                        const prefix = match[1];
+                        const numStr = match[2];
+                        const nextNum = parseInt(numStr, 10) + 1;
+                        nextRef = `${prefix}${String(nextNum).padStart(numStr.length, '0')}`;
+                    }
+                }
+                req.body.clientReference = nextRef;
+            }
         }
 
         const newExport = await prisma.logisticsExport.create({
@@ -1360,10 +1404,16 @@ app.use((err, req, res, next) => {
     res.status(status).json({ error: message });
 });
 
-if (process.env.NODE_ENV !== 'production') {
+console.log("SERVER.JS: evaluating listen condition...", { NODE_ENV: process.env.NODE_ENV, VERCEL: process.env.VERCEL });
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    console.log("SERVER.JS: starting listen on port 5000...");
     app.listen(5000, '0.0.0.0', () => {
         console.log('Kamuchi Backend running on port 5000 (accessible on local network)');
+    }).on('error', (err) => {
+        console.error("SERVER.JS: listen error", err);
     });
+} else {
+    console.log("SERVER.JS: skipping listen because it's production and VERCEL is true");
 }
 
 module.exports = app;
